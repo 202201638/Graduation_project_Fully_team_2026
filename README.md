@@ -244,8 +244,3 @@ This project is licensed under the **MIT License**.
 ## ⭐ Final Note
 
 > This system demonstrates how AI can enhance healthcare by assisting doctors in faster and more accurate diagnosis.
-
----
-
-✅ Fix your **git push error (non-fast-forward)**
-✅ Help you **deploy it (Render / Vercel / AWS)**
