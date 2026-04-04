@@ -1,0 +1,205 @@
+<div class="records-page">
+  <app-navbar></app-navbar>
+
+  <main class="records-main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="breadcrumb">
+          <span class="breadcrumb-root">Dashboard</span>
+          <span class="breadcrumb-separator">/</span>
+          <span class="breadcrumb-current">Patient Records</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-button" type="button" aria-label="Search">
+          🔍
+        </button>
+        <button class="icon-button" type="button" aria-label="Notifications">
+          🔔
+        </button>
+        <div class="avatar" aria-label="User menu">
+          <span class="avatar-initials">JD</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="records-content">
+      <header class="records-header">
+        <h1 class="records-title">Patient Records</h1>
+      </header>
+
+      <div class="records-layout">
+        <section class="records-left" aria-label="Filters and table">
+          <div class="side-card filters-card">
+            <h2 class="side-card-title">Filter Records</h2>
+
+            <div class="filters-group">
+              <label class="filter-label" for="search-input">Search by Patient Name or ID</label>
+              <input
+                id="search-input"
+                type="text"
+                class="filter-input"
+                placeholder="Search..."
+                [(ngModel)]="search"
+                (ngModelChange)="onSearchChange()"
+              />
+            </div>
+
+            <div class="filters-row">
+              <div class="filters-group">
+                <label class="filter-label" for="diagnosis-select">All Diagnoses</label>
+                <select
+                  id="diagnosis-select"
+                  class="filter-select"
+                  [(ngModel)]="diagnosisFilter"
+                  (ngModelChange)="onDiagnosisChange()"
+                >
+                  <option value="all">All Diagnoses</option>
+                  <option value="pneumonia">Pneumonia Detected</option>
+                  <option value="healthy">Healthy</option>
+                </select>
+              </div>
+
+              <div class="filters-group">
+                <label class="filter-label" for="date-filter">Filter by Date (YYYY-MM-DD)</label>
+                <input
+                  id="date-filter"
+                  type="date"
+                  class="filter-input"
+                  [(ngModel)]="dateFilter"
+                  (ngModelChange)="onDateChange()"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="side-card table-card" aria-label="All patient scans">
+            <h2 class="side-card-title">All Patient Scans</h2>
+
+            <div class="table-wrapper">
+              <table class="records-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Patient Name</th>
+                    <th>Date</th>
+                    <th>Diagnosis</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    *ngFor="let row of paged"
+                    (click)="selectRecord(row)"
+                    [ngClass]="{ 'row-selected': selected === row }"
+                  >
+                    <td>{{ row.id }}</td>
+                    <td>{{ row.patientName }}</td>
+                    <td>{{ row.date }}</td>
+                    <td>
+                      <span
+                        class="status-pill"
+                        [ngClass]="{
+                          'status-danger': row.statusVariant === 'danger',
+                          'status-success': row.statusVariant === 'success',
+                          'status-neutral': row.statusVariant === 'neutral'
+                        }"
+                      >
+                        {{ row.diagnosis }}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr *ngIf="!paged.length">
+                    <td colspan="4" class="empty-state">No records found.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-footer">
+              <button class="pager-button" type="button" (click)="prevPage()" [disabled]="currentPage === 1">
+                Previous
+              </button>
+              <span class="pager-info">Page {{ currentPage }} of {{ totalPages }}</span>
+              <button
+                class="pager-button"
+                type="button"
+                (click)="nextPage()"
+                [disabled]="currentPage === totalPages"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="records-right" aria-label="Patient scan details">
+          <div class="detail-card">
+            <header class="detail-header">
+              <div class="detail-meta">
+                <div class="detail-patient-name">
+                  Patient:
+                  <span class="detail-strong">{{ selected!.patientName || '—' }}</span>
+                  <span class="detail-id" *ngIf="selected">({{ selected!.id }})</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Scan Date:</span>
+                  <span class="detail-value">{{ selected!.date || '—' }}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">AI Diagnosis:</span>
+                  <span
+                    class="status-pill"
+                    [ngClass]="{
+                      'status-danger': selected!.statusVariant === 'danger',
+                      'status-success': selected!.statusVariant === 'success',
+                      'status-neutral': selected!.statusVariant === 'neutral'
+                    }"
+                    *ngIf="selected"
+                  >
+                    {{ selected!.diagnosis }}
+                  </span>
+                </div>
+                <div class="detail-row" *ngIf="selected">
+                  <span class="detail-label">Confidence Score:</span>
+                  <span class="detail-value">{{ selected!.confidence | number: '1.0-1' }}%</span>
+                </div>
+              </div>
+
+              <div class="detail-actions">
+                <button class="btn primary" type="button" (click)="downloadSelectedReport()" [disabled]="!selected">
+                  Download Report
+                </button>
+                <button class="btn ghost" type="button" (click)="enableComparison()" [disabled]="!selected">
+                  Enable Comparison
+                </button>
+              </div>
+            </header>
+
+            <div class="detail-body">
+              <div class="detail-image-wrapper" *ngIf="selected as sel; else noSelection">
+                <ng-container *ngIf="sel.image; else imagePlaceholder">
+                  <img [src]="sel.image" alt="Selected X-ray" />
+                </ng-container>
+                <ng-template #imagePlaceholder>
+                  <div class="detail-image-placeholder">No X-ray preview available for this record.</div>
+                </ng-template>
+              </div>
+              <ng-template #noSelection>
+                <div class="detail-image-placeholder">Select a record from the table to view details.</div>
+              </ng-template>
+
+              <section class="notes-section" aria-label="Doctor's notes">
+                <h2 class="notes-title">Doctor's Notes</h2>
+                <textarea
+                  class="notes-area"
+                  rows="5"
+                  placeholder="Add your observations and notes here..."
+                ></textarea>
+              </section>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+</div>

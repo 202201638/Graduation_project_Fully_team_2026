@@ -1,0 +1,33 @@
+<nav class="navbar" aria-label="Main navigation">
+  <div class="navbar-container">
+    <div class="navbar-brand">
+      <div class="navbar-logo">CX</div>
+      <div class="navbar-title">Chest X-ray</div>
+    </div>
+
+    <div class="navbar-menu">
+      <a routerLink="/dashboard" class="navbar-link" [class.active]="isActive('/dashboard')">
+        <span>Dashboard</span>
+      </a>
+      <a routerLink="/upload" class="navbar-link" [class.active]="isActive('/upload')">
+        <span>Upload X-ray</span>
+      </a>
+      <a routerLink="/records" class="navbar-link" [class.active]="isActive('/records')">
+        <span>Patient Records</span>
+      </a>
+      <a routerLink="/admin" class="navbar-link" [class.active]="isActive('/admin')">
+        <span>Admin Panel</span>
+      </a>
+      <a routerLink="/profile" class="navbar-link" [class.active]="isActive('/profile')">
+        <span>Profile</span>
+      </a>
+      <a routerLink="/settings" class="navbar-link" [class.active]="isActive('/settings')">
+        <span>Settings</span>
+      </a>
+    </div>
+
+    <div class="navbar-actions">
+      <a routerLink="/login" class="navbar-btn logout-btn">LOGOUT</a>
+    </div>
+  </div>
+</nav>

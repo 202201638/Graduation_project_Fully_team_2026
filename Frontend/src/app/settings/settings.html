@@ -1,0 +1,280 @@
+<div class="settings-page">
+  <app-navbar></app-navbar>
+
+  <main class="settings-main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="breadcrumb">
+          <span class="breadcrumb-root">Dashboard</span>
+          <span class="breadcrumb-separator">/</span>
+          <span class="breadcrumb-current">Settings</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-button" type="button" aria-label="Search">
+          🔍
+        </button>
+        <button class="icon-button" type="button" aria-label="Notifications">
+          🔔
+        </button>
+        <button
+          class="avatar"
+          type="button"
+          aria-label="Open profile"
+          routerLink="/profile"
+        >
+          <span class="avatar-initials">AJ</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="settings-content">
+      <header class="settings-header">
+        <h1 class="settings-title">Settings</h1>
+        <p class="settings-subtitle">
+          Manage your account preferences, notification settings, and app
+          customization.
+        </p>
+      </header>
+
+      <div class="settings-stack">
+        <section class="card section-card" aria-labelledby="account-settings">
+          <div class="section-header">
+            <div>
+              <h2 id="account-settings" class="section-title">Account Settings</h2>
+              <p class="section-description">
+                Update your basic account information and security details.
+              </p>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="full-name">Full Name</label>
+            <input
+              id="full-name"
+              type="text"
+              class="field-input"
+              [(ngModel)]="displayName"
+            />
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="role">Role / Title</label>
+            <input
+              id="role"
+              type="text"
+              class="field-input"
+              [(ngModel)]="displayRole"
+            />
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="avatar-initials">Avatar Initials</label>
+            <input
+              id="avatar-initials"
+              type="text"
+              class="field-input"
+              maxlength="3"
+              [(ngModel)]="avatarInitials"
+            />
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="email">Email Address</label>
+            <input
+              id="email"
+              type="email"
+              class="field-input"
+              [(ngModel)]="email"
+            />
+          </div>
+
+          <div class="password-row">
+            <div class="password-text">
+              <div class="password-title">Change Password</div>
+              <div class="password-description">
+                Use a strong password with at least 8 characters.
+              </div>
+            </div>
+            <button class="btn outline" type="button">Update Password</button>
+          </div>
+        </section>
+
+        <section
+          class="card section-card"
+          aria-labelledby="notification-preferences"
+        >
+          <div class="section-header">
+            <div>
+              <h2 id="notification-preferences" class="section-title">
+                Notification Preferences
+              </h2>
+              <p class="section-description">
+                Choose how you want to receive important alerts and case
+                updates.
+              </p>
+            </div>
+          </div>
+
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <div class="toggle-title">Email Notifications</div>
+              <div class="toggle-description">
+                Receive email alerts for important updates and case reports.
+              </div>
+            </div>
+            <label class="toggle" aria-label="Toggle email notifications">
+              <input type="checkbox" [(ngModel)]="emailNotifications" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <div class="toggle-title">SMS Notifications</div>
+              <div class="toggle-description">
+                Get SMS notifications for urgent patient alerts or system
+                maintenance.
+              </div>
+            </div>
+            <label class="toggle" aria-label="Toggle SMS notifications">
+              <input type="checkbox" [(ngModel)]="smsNotifications" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </section>
+
+        <section class="card section-card" aria-labelledby="privacy-settings">
+          <div class="section-header">
+            <div>
+              <h2 id="privacy-settings" class="section-title">Privacy Settings</h2>
+              <p class="section-description">
+                Control how anonymized data is used to improve AI models.
+              </p>
+            </div>
+          </div>
+
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <div class="toggle-title">Share Anonymized Data</div>
+              <div class="toggle-description">
+                Help improve AI models by sharing anonymized X-ray analysis
+                data.
+              </div>
+            </div>
+            <label class="toggle" aria-label="Toggle anonymized data sharing">
+              <input type="checkbox" [(ngModel)]="shareAnonymizedData" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </section>
+
+        <section class="card section-card" aria-labelledby="security-settings">
+          <div class="section-header">
+            <div>
+              <h2 id="security-settings" class="section-title">Security</h2>
+              <p class="section-description">
+                Add extra layers of security and manage active sessions.
+              </p>
+            </div>
+          </div>
+
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <div class="toggle-title">Two-Factor Authentication</div>
+              <div class="toggle-description">
+                Add an extra step of security to your account.
+              </div>
+            </div>
+            <label class="toggle" aria-label="Toggle two-factor authentication">
+              <input type="checkbox" [(ngModel)]="twoFactorAuth" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="sessions-block">
+            <div class="sessions-header">Active Sessions</div>
+            <ul class="sessions-list">
+              <li
+                class="session-item"
+                *ngFor="let session of activeSessions"
+              >
+                <div class="session-main">
+                  <div class="session-device">{{ session.device }}</div>
+                  <div class="session-meta">
+                    {{ session.location }} • {{ session.browser }}
+                  </div>
+                </div>
+                <div class="session-last">{{ session.lastActive }}</div>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="card section-card" aria-labelledby="app-preferences">
+          <div class="section-header">
+            <div>
+              <h2 id="app-preferences" class="section-title">App Preferences</h2>
+              <p class="section-description">
+                Customize how the application looks and feels for you.
+              </p>
+            </div>
+          </div>
+
+          <div class="field-grid">
+            <div class="field-group">
+              <label class="field-label" for="app-theme">App Theme</label>
+              <select
+                id="app-theme"
+                class="field-input"
+                [(ngModel)]="appTheme"
+              >
+                <option value="system">System</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label" for="language">Language</label>
+              <select
+                id="language"
+                class="field-input"
+                [(ngModel)]="language"
+              >
+                <option value="en">English</option>
+                <option value="ar">Arabic</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <footer class="settings-actions">
+          <button
+            class="btn ghost"
+            type="button"
+            (click)="onCancel()"
+          >
+            Cancel
+          </button>
+          <div class="actions-right">
+            <button
+              class="btn danger"
+              type="button"
+              (click)="onDeleteAccount()"
+            >
+              Delete Account
+            </button>
+            <button
+              class="btn primary"
+              type="button"
+              (click)="onSave()"
+            >
+              Save Changes
+            </button>
+          </div>
+        </footer>
+      </div>
+    </section>
+  </main>
+</div>

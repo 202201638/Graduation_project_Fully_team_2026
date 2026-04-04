@@ -1,0 +1,71 @@
+<div class="auth-page">
+  <div class="background-orb orb-1"></div>
+  <div class="background-orb orb-2"></div>
+  <div class="background-orb orb-3"></div>
+
+  <main class="auth-content">
+    <section class="auth-card" aria-labelledby="login-title">
+      <div class="auth-badge">
+        <div class="auth-badge-icon">CX</div>
+        <span class="auth-badge-text">Chest X-ray</span>
+      </div>
+
+      <h1 id="login-title" class="auth-title">Welcome to Chest X-ray</h1>
+      <p class="auth-subtitle">
+        Please sign in to access AI-powered pneumonia detection and manage your patients.
+      </p>
+
+      <form class="auth-form" novalidate (submit)="onSubmit($event)">
+        <!-- Error Message -->
+        <div *ngIf="errorMessage" class="error-message">
+          {{ errorMessage }}
+        </div>
+
+        <div class="form-group">
+          <label for="login-email">Email address</label>
+          <input
+            id="login-email"
+            type="email"
+            placeholder="you@example.com"
+            autocomplete="email"
+            required
+            [(ngModel)]="email"
+            name="email"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <input
+            id="login-password"
+            type="password"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            required
+            [(ngModel)]="password"
+            name="password"
+          />
+        </div>
+
+        <div class="form-row">
+          <label class="checkbox">
+            <input type="checkbox" />
+            <span>Remember me</span>
+          </label>
+          <a routerLink="/forget-password" class="link">Forgot password?</a>
+        </div>
+
+        <button type="submit" class="btn primary" [disabled]="isLoading">
+          <span *ngIf="!isLoading">Login</span>
+          <span *ngIf="isLoading">Logging in...</span>
+        </button>
+      </form>
+
+      <p class="auth-footer">
+        Don't have an account?
+        <a routerLink="/signup" class="link">Sign up</a>
+      </p>
+    </section>
+  </main>
+</div>
+

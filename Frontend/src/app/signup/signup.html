@@ -1,0 +1,78 @@
+<div class="auth-page">
+  <div class="background-orb orb-1"></div>
+  <div class="background-orb orb-2"></div>
+  <div class="background-orb orb-3"></div>
+
+  <main class="auth-content">
+    <section class="auth-card" aria-labelledby="signup-title">
+      <div class="auth-badge">
+        <div class="auth-badge-icon">CX</div>
+        <span class="auth-badge-text">Chest X-ray</span>
+      </div>
+
+      <h1 id="signup-title" class="auth-title">Create your account</h1>
+      <p class="auth-subtitle">
+        Set up your Mediscan AI account to start analyzing chest X-rays and managing patient records.
+      </p>
+
+      <form class="auth-form" novalidate>
+        <div class="form-row form-row-split">
+          <div class="form-group">
+            <label for="signup-first-name">First name</label>
+            <input id="signup-first-name" type="text" placeholder="John" required />
+          </div>
+          <div class="form-group">
+            <label for="signup-last-name">Last name</label>
+            <input id="signup-last-name" type="text" placeholder="Doe" required />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="signup-email">Work email</label>
+          <input
+            id="signup-email"
+            type="email"
+            placeholder="you@hospital.org"
+            autocomplete="email"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="signup-hospital">Hospital / institution</label>
+          <input id="signup-hospital" type="text" placeholder="Hospital name" />
+        </div>
+
+        <div class="form-group">
+          <label for="signup-password">Password</label>
+          <input
+            id="signup-password"
+            type="password"
+            placeholder="Create a strong password"
+            autocomplete="new-password"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="signup-confirm">Confirm password</label>
+          <input
+            id="signup-confirm"
+            type="password"
+            placeholder="Re-enter your password"
+            autocomplete="new-password"
+            required
+          />
+        </div>
+
+        <button type="submit" class="btn primary">Create account</button>
+      </form>
+
+      <p class="auth-footer">
+        Already have an account?
+        <a routerLink="/login" class="link">Login</a>
+      </p>
+    </section>
+  </main>
+</div>
+

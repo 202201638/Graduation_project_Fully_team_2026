@@ -1,0 +1,70 @@
+<div class="intro-page">
+  <div class="intro-orb orb-1"></div>
+  <div class="intro-orb orb-2"></div>
+  <div class="intro-orb orb-3"></div>
+
+  <main class="intro-main">
+    <header class="intro-header">
+      <div class="intro-brand">
+        <div class="brand-mark">CX</div>
+        <div>
+          <p class="brand-title">Mediscan AI</p>
+          <p class="brand-subtitle">Chest X-ray assistant</p>
+        </div>
+      </div>
+
+      <button class="skip-button" type="button" (click)="skip()">Skip</button>
+    </header>
+
+    <section class="intro-shell" aria-live="polite">
+      <section class="intro-hero">
+        <p class="eyebrow">Clinical onboarding</p>
+        <h1 class="hero-title">Faster decisions with clearer AI support</h1>
+        <p class="hero-subtitle">
+          Review key capabilities in a few steps, then start analyzing chest X-rays with confidence.
+        </p>
+
+        <div class="hero-metrics" aria-hidden="true">
+          <article class="metric-card">
+            <p class="metric-value">96%</p>
+            <p class="metric-label">Average confidence</p>
+          </article>
+          <article class="metric-card">
+            <p class="metric-value">&lt; 10s</p>
+            <p class="metric-label">Typical scan analysis</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="step-card">
+        <div class="step-head">
+          <p class="step-index">Step {{ currentIndex + 1 }} / {{ slides.length }}</p>
+        </div>
+
+        <div class="step-content">
+          <div class="step-icon">{{ slides[currentIndex].icon }}</div>
+          <h2 class="step-title">{{ slides[currentIndex].title }}</h2>
+          <p class="step-subtitle">{{ slides[currentIndex].subtitle }}</p>
+        </div>
+
+        <div class="intro-progress" aria-label="Intro progress">
+          <button
+            type="button"
+            class="intro-dot"
+            *ngFor="let slide of slides; let i = index"
+            [class.active]="i <= currentIndex"
+            [attr.aria-current]="i === currentIndex ? 'step' : null"
+            (click)="selectStep(i)"
+          ></button>
+        </div>
+
+        <div class="intro-actions">
+          <button class="btn ghost" type="button" (click)="skip()">Skip intro</button>
+          <button class="btn primary" type="button" (click)="next()">
+            {{ isLastStep ? 'Get started' : 'Next step' }}
+          </button>
+        </div>
+      </section>
+    </section>
+  </main>
+</div>

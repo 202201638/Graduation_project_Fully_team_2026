@@ -1,0 +1,68 @@
+<div class="processing-page">
+  <aside class="sidebar" aria-label="Main navigation">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">CX</div>
+      <div class="sidebar-title">Chest X-ray</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a routerLink="/dashboard" class="sidebar-link">
+        <span class="sidebar-icon">🏠</span>
+        <span>Dashboard</span>
+      </a>
+      <a routerLink="/upload" class="sidebar-link active">
+        <span class="sidebar-icon">📤</span>
+        <span>Upload X-ray</span>
+      </a>
+      <a routerLink="/records" class="sidebar-link">
+        <span class="sidebar-icon">📁</span>
+        <span>Patient Records</span>
+      </a>
+      <a routerLink="/admin" class="sidebar-link">
+        <span class="sidebar-icon">🛠️</span>
+        <span>Admin Panel</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="sidebar-link" type="button">
+        <span class="sidebar-icon">👤</span>
+        <span>Profile</span>
+      </button>
+      <button class="sidebar-link" type="button">
+        <span class="sidebar-icon">⚙️</span>
+        <span>Settings</span>
+      </button>
+      <a routerLink="/login" class="sidebar-link sidebar-logout">
+        <span class="sidebar-icon">⏏</span>
+        <span>Logout</span>
+      </a>
+    </div>
+  </aside>
+
+  <main class="processing-main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 class="processing-title">Processing</h1>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-button" type="button" aria-label="Search">
+          🔍
+        </button>
+        <button class="icon-button" type="button" aria-label="Notifications">
+          🔔
+        </button>
+      </div>
+    </header>
+
+    <section class="processing-content">
+      <div class="processing-card">
+        <div class="loader-circle"></div>
+        <p class="processing-text">MediScan AI is analyzing your X-ray...</p>
+        <div class="processing-bar">
+          <div class="processing-bar-fill"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>

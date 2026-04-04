@@ -1,0 +1,135 @@
+<div class="upload-page">
+  <app-navbar></app-navbar>
+
+  <main class="upload-main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="breadcrumb">
+          <span class="breadcrumb-root">Dashboard</span>
+          <span class="breadcrumb-separator">/</span>
+          <span class="breadcrumb-current">Upload X-ray</span>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <button class="icon-button" type="button" aria-label="Search">
+          🔍
+        </button>
+        <button class="icon-button" type="button" aria-label="Notifications">
+          🔔
+        </button>
+        <div class="avatar" aria-label="User menu">
+          <span class="avatar-initials">JD</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="upload-content">
+      <header class="upload-header">
+        <h1 class="upload-title">Upload X-ray Image</h1>
+      </header>
+
+      <div class="upload-layout">
+        <section class="upload-left" aria-label="New X-ray scan">
+          <div class="upload-card">
+            <h2 class="card-title">New X-ray Scan</h2>
+            <p class="card-subtitle">
+              Drag &amp; drop your X-ray images (JPG, PNG, DICOM) for AI analysis.
+            </p>
+
+            <label class="dropzone" for="xray-file">
+              <div class="dropzone-inner">
+                <div class="dropzone-icon">⬆️</div>
+                <div class="dropzone-text">
+                  Drag &amp; drop X-ray here, or click to browse
+                </div>
+                <input
+                  id="xray-file"
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.dcm,.dicom"
+                  (change)="onFileSelected($event)"
+                  hidden
+                />
+              </div>
+            </label>
+
+            <div class="upload-form-row">
+              <div class="form-group">
+                <label for="patient-id">Patient ID</label>
+                <input
+                  id="patient-id"
+                  type="text"
+                  placeholder="e.g., MS-001-A"
+                  name="patientId"
+                  [(ngModel)]="patientId"
+                />
+              </div>
+              <div class="form-group">
+                <label for="scan-type">Scan Type</label>
+                <select
+                  id="scan-type"
+                  name="scanType"
+                  [(ngModel)]="scanType"
+                >
+                  <option value="">Select scan type</option>
+                  <option value="pa">PA Chest</option>
+                  <option value="ap">AP Chest</option>
+                  <option value="lateral">Lateral Chest</option>
+                </select>
+              </div>
+            </div>
+
+            <button
+              class="btn primary"
+              type="button"
+              (click)="onAnalyze()"
+              [disabled]="!canAnalyze"
+            >
+              Analyze X-ray
+            </button>
+          </div>
+        </section>
+
+        <section class="upload-right" aria-label="Guidelines and recent uploads">
+          <div class="side-card">
+            <h2 class="side-card-title">Upload Guidelines</h2>
+            <ul class="guidelines-list">
+              <li>Supported formats: JPG, PNG, DICOM.</li>
+              <li>Ensure images are clear, high resolution, and well lit.</li>
+              <li>Optimal resolution: 1024×1024 pixels or higher.</li>
+              <li>Avoid patient identifiable information in file names or metadata.</li>
+              <li>Consult local data privacy regulations.</li>
+            </ul>
+          </div>
+
+          <div class="side-card">
+            <h2 class="side-card-title">Recent Uploads</h2>
+            <ul class="recent-list">
+              <li class="recent-item" *ngFor="let item of recentUploads">
+                <div class="recent-main">
+                  <div class="recent-thumb">
+                    <ng-container *ngIf="item.image; else recentLetter">
+                      <img
+                        [src]="item.image"
+                        [alt]="'X-ray for ' + item.id"
+                      />
+                    </ng-container>
+                    <ng-template #recentLetter>
+                      <span class="recent-letter">{{ item.label }}</span>
+                    </ng-template>
+                  </div>
+                  <div class="recent-meta">
+                    <div class="recent-id">Patient ID: {{ item.id }}</div>
+                    <div class="recent-date">{{ item.date }}</div>
+                  </div>
+                </div>
+                <button class="recent-arrow" type="button">→</button>
+              </li>
+            </ul>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+</div>
+

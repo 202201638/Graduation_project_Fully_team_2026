@@ -1,0 +1,102 @@
+<div class="dashboard-page">
+  <app-navbar></app-navbar>
+
+  <main class="dashboard-main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="breadcrumb">
+          <span class="breadcrumb-root">Dashboard</span>
+          <span class="breadcrumb-separator">/</span>
+          <span class="breadcrumb-current">Chest X-ray</span>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <button class="icon-button" type="button" aria-label="Search">
+          🔍
+        </button>
+        <button class="icon-button" type="button" aria-label="Notifications">
+          🔔
+        </button>
+        <button
+          class="avatar"
+          type="button"
+          aria-label="Open profile"
+          routerLink="/profile"
+        >
+          <span class="avatar-initials">AJ</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="dashboard-content">
+      <header class="dashboard-header">
+        <div>
+          <h1 class="dashboard-title">Welcome, Dr. Alex Johnson</h1>
+          <p class="dashboard-subtitle">
+            Here's a quick overview of your Mediscan AI activity.
+          </p>
+        </div>
+      </header>
+
+      <section class="stats-section" aria-label="Quick statistics">
+        <article
+          class="stat-card"
+          *ngFor="let stat of stats"
+          [ngClass]="'stat-' + stat.accent"
+        >
+          <div class="stat-label">{{ stat.label }}</div>
+          <div class="stat-value">{{ stat.value }}</div>
+          <p class="stat-description">{{ stat.description }}</p>
+        </article>
+      </section>
+
+      <section class="actions-row" aria-label="Primary actions">
+        <button class="btn primary" type="button" routerLink="/upload">
+          Upload New X-ray
+        </button>
+        <button class="btn ghost" type="button" routerLink="/records">
+          View Patient Records
+        </button>
+      </section>
+
+      <section class="activity-section" aria-label="Recent activity">
+        <header class="section-header">
+          <h2 class="section-title">Recent Activity</h2>
+          <button class="link-button" type="button">View All Activity</button>
+        </header>
+
+        <div class="activity-list">
+          <article
+            class="activity-item"
+            *ngFor="let activity of activities"
+          >
+            <div class="activity-main">
+              <div class="activity-name">{{ activity.name }}</div>
+              <div class="activity-meta">
+                <span class="activity-date">{{ activity.timestamp }}</span>
+                <span class="activity-dot">•</span>
+                <span class="activity-diagnosis">
+                  {{ activity.diagnosis }} (Confidence: {{ activity.confidence }})
+                </span>
+              </div>
+            </div>
+
+            <div class="activity-actions">
+              <span
+                class="status-pill"
+                [ngClass]="{
+                  'status-success': activity.statusVariant === 'success',
+                  'status-danger': activity.statusVariant === 'danger'
+                }"
+              >
+                {{ activity.statusLabel }}
+              </span>
+              <button class="link-button" type="button">View Details</button>
+            </div>
+          </article>
+        </div>
+      </section>
+    </section>
+  </main>
+</div>

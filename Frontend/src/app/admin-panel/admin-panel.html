@@ -1,0 +1,369 @@
+<div class="admin-page">
+  <app-navbar></app-navbar>
+
+  <main class="admin-main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="breadcrumb">
+          <span class="breadcrumb-root">Dashboard</span>
+          <span class="breadcrumb-separator">/</span>
+          <span class="breadcrumb-current">Admin Panel</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-button" type="button" aria-label="Search">
+          🔍
+        </button>
+        <button class="icon-button" type="button" aria-label="Notifications">
+          🔔
+        </button>
+        <button
+          class="avatar"
+          type="button"
+          aria-label="Open profile"
+          routerLink="/profile"
+        >
+          <span class="avatar-initials">AJ</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="admin-content">
+      <header class="admin-header">
+        <h1 class="admin-title">Admin Panel</h1>
+        <p class="admin-subtitle">
+          Manage doctor accounts, view system statistics, and configure application settings.
+        </p>
+      </header>
+
+      <div class="tabs-row" aria-label="Admin sections">
+        <button
+          class="tab"
+          type="button"
+          [ngClass]="{ active: activeTab === 'doctors' }"
+          (click)="setTab('doctors')"
+        >
+          Doctor Accounts
+        </button>
+        <button
+          class="tab"
+          type="button"
+          [ngClass]="{ active: activeTab === 'stats' }"
+          (click)="setTab('stats')"
+        >
+          System Statistics
+        </button>
+        <button
+          class="tab"
+          type="button"
+          [ngClass]="{ active: activeTab === 'config' }"
+          (click)="setTab('config')"
+        >
+          Configuration &amp; Updates
+        </button>
+        <button
+          class="tab"
+          type="button"
+          [ngClass]="{ active: activeTab === 'audit' }"
+          (click)="setTab('audit')"
+        >
+          Audit Logs
+        </button>
+      </div>
+
+      <div class="admin-layout" *ngIf="activeTab === 'doctors'; else otherAdminTabs">
+        <section class="admin-left" aria-label="Manage doctors">
+          <div class="card manage-card">
+            <header class="card-header">
+              <div>
+                <h2 class="card-title">Manage Doctors</h2>
+                <p class="card-subtitle">
+                  Add, edit, or remove doctor accounts and manage their roles.
+                </p>
+              </div>
+              <button class="btn primary" type="button" (click)="addDoctor()">
+                Add Doctor
+              </button>
+            </header>
+
+            <div class="filters-row">
+              <div class="filters-group">
+                <input
+                  type="text"
+                  class="filter-input"
+                  placeholder="Search doctors..."
+                  [(ngModel)]="search"
+                  (ngModelChange)="onSearchChange()"
+                />
+              </div>
+              <div class="filters-group">
+                <select
+                  class="filter-select"
+                  [(ngModel)]="statusFilter"
+                  (ngModelChange)="onStatusChange()"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Disabled</option>
+                  <option value="suspended">Suspended</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="filters-row">
+              <div class="filters-group">
+                <input
+                  type="text"
+                  class="filter-input"
+                  placeholder="Doctor name"
+                  [(ngModel)]="newDoctorName"
+                />
+              </div>
+              <div class="filters-group">
+                <input
+                  type="email"
+                  class="filter-input"
+                  placeholder="Doctor email"
+                  [(ngModel)]="newDoctorEmail"
+                />
+              </div>
+            </div>
+
+            <div class="filters-row">
+              <div class="filters-group">
+                <select
+                  class="filter-select"
+                  [(ngModel)]="newDoctorRole"
+                >
+                  <option value="Doctor">Doctor</option>
+                  <option value="Admin">Admin</option>
+                </select>
+              </div>
+              <div class="filters-group">
+                <select
+                  class="filter-select"
+                  [(ngModel)]="newDoctorStatus"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Disabled</option>
+                  <option value="suspended">Suspended</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="table-wrapper">
+              <table class="doctors-table">
+                <thead>
+                  <tr>
+                    <th>Doctor Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th class="actions-col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let d of filtered">
+                    <td>{{ d.name }}</td>
+                    <td>{{ d.email }}</td>
+                    <td>{{ d.role }}</td>
+                    <td>
+                      <span
+                        class="status-pill"
+                        [ngClass]="{
+                          'status-active': d.status === 'active',
+                          'status-inactive': d.status === 'inactive',
+                          'status-suspended': d.status === 'suspended'
+                        }"
+                      >
+                        {{ getStatusLabel(d) }}
+                      </span>
+                    </td>
+                    <td class="actions-col">
+                      <button
+                        class="icon-action"
+                        type="button"
+                        title="Toggle active/disabled"
+                        (click)="toggleStatus(d)"
+                      >
+                        🔁
+                      </button>
+                      <button
+                        class="icon-action danger"
+                        type="button"
+                        title="Remove doctor"
+                        (click)="removeDoctor(d)"
+                      >
+                        🗑
+                      </button>
+                    </td>
+                  </tr>
+                  <tr *ngIf="!filtered.length">
+                    <td colspan="5" class="empty-state">No doctors found.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="admin-right" aria-label="Placeholder panels">
+          <div class="card info-card">
+            <h2 class="card-title">System Overview</h2>
+            <p class="card-subtitle">
+              This area can display key system metrics such as total scans, active users,
+              and system health once backend integration is added.
+            </p>
+          </div>
+
+          <div class="card info-card">
+            <h2 class="card-title">Recent Admin Activity</h2>
+            <p class="card-subtitle">
+              Track configuration changes and audit important administrative actions here.
+            </p>
+          </div>
+        </section>
+      </div>
+
+      <ng-template #otherAdminTabs>
+        <div class="admin-layout">
+          <section
+            class="admin-left"
+            *ngIf="activeTab === 'stats'"
+            aria-label="System statistics"
+          >
+            <div class="card manage-card">
+              <h2 class="card-title">System Statistics</h2>
+              <p class="card-subtitle">
+                High-level metrics about MediScan AI usage and system health.
+              </p>
+              <div class="stats-grid">
+                <div class="stat-chip" *ngFor="let stat of systemStats">
+                  <div class="stat-label">{{ stat.label }}</div>
+                  <div class="stat-value">{{ stat.value }}</div>
+                  <div class="stat-description">{{ stat.description }}</div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section
+            class="admin-left"
+            *ngIf="activeTab === 'config'"
+            aria-label="Configuration and updates"
+          >
+            <div class="card manage-card">
+              <h2 class="card-title">Configuration &amp; Updates</h2>
+              <p class="card-subtitle">
+                Toggle key system options. Changes here are kept only in this demo
+                session.
+              </p>
+
+              <div class="toggle-list">
+                <label class="toggle-row">
+                  <input type="checkbox" [(ngModel)]="maintenanceMode" />
+                  <div class="toggle-text">
+                    <span class="toggle-title">Maintenance mode</span>
+                    <span class="toggle-description">
+                      When enabled, limit access to administrators only.
+                    </span>
+                  </div>
+                </label>
+
+                <label class="toggle-row">
+                  <input type="checkbox" [(ngModel)]="autoUpdates" />
+                  <div class="toggle-text">
+                    <span class="toggle-title">Automatic updates</span>
+                    <span class="toggle-description">
+                      Automatically apply minor updates and security patches.
+                    </span>
+                  </div>
+                </label>
+
+                <label class="toggle-row">
+                  <input type="checkbox" [(ngModel)]="errorTracking" />
+                  <div class="toggle-text">
+                    <span class="toggle-title">Error tracking</span>
+                    <span class="toggle-description">
+                      Collect anonymized error reports to improve stability.
+                    </span>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <section
+            class="admin-left"
+            *ngIf="activeTab === 'audit'"
+            aria-label="Audit logs"
+          >
+            <div class="card manage-card">
+              <h2 class="card-title">Audit Logs</h2>
+              <p class="card-subtitle">
+                Recent administrative actions recorded by the system.
+              </p>
+
+              <div class="table-wrapper">
+                <table class="doctors-table audit-table">
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      <th>Actor</th>
+                      <th>Action</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let log of auditLogs">
+                      <td>{{ log.timestamp }}</td>
+                      <td>{{ log.actor }}</td>
+                      <td>{{ log.action }}</td>
+                      <td>
+                        <span
+                          class="status-pill"
+                          [ngClass]="{
+                            'status-active': log.status === 'Success',
+                            'status-suspended': log.status === 'Denied'
+                          }"
+                        >
+                          {{ log.status }}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <section class="admin-right" aria-label="Admin info">
+            <div class="card info-card" *ngIf="activeTab === 'stats'">
+              <h2 class="card-title">Usage Insights</h2>
+              <p class="card-subtitle">
+                Use these metrics to monitor how often MediScan AI is used across
+                your organization.
+              </p>
+            </div>
+
+            <div class="card info-card" *ngIf="activeTab === 'config'">
+              <h2 class="card-title">Configuration Tips</h2>
+              <p class="card-subtitle">
+                Keep automatic updates and error tracking enabled in production to
+                maintain security and stability.
+              </p>
+            </div>
+
+            <div class="card info-card" *ngIf="activeTab === 'audit'">
+              <h2 class="card-title">Audit Guidance</h2>
+              <p class="card-subtitle">
+                Regularly review audit logs to ensure configuration changes follow
+                your clinic's compliance policies.
+              </p>
+            </div>
+          </section>
+        </div>
+      </ng-template>
+    </section>
+  </main>
+</div>

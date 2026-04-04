@@ -1,0 +1,173 @@
+<div class="profile-page">
+  <app-navbar></app-navbar>
+
+  <main class="profile-main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="breadcrumb">
+          <span class="breadcrumb-root">Dashboard</span>
+          <span class="breadcrumb-separator">/</span>
+          <span class="breadcrumb-current">Profile</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-button" type="button" aria-label="Search">
+          &#x1F50D;
+        </button>
+        <button class="icon-button" type="button" aria-label="Notifications">
+          &#x1F514;
+        </button>
+        <button
+          class="avatar"
+          type="button"
+          aria-label="Open profile"
+          routerLink="/profile"
+        >
+          <span class="avatar-initials">{{ avatarInitials }}</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="profile-content">
+      <header class="profile-header card">
+        <div class="profile-header-left">
+          <div class="profile-avatar">
+            <span class="profile-avatar-initials">{{ avatarInitials }}</span>
+          </div>
+          <div class="profile-info">
+            <h1 class="profile-name">{{ name || 'Your Name' }}</h1>
+            <p class="profile-role">{{ role || 'Your Role' }}</p>
+            <p class="profile-email">
+              <a [href]="'mailto:' + email">{{ email || 'your.email@example.com' }}</a>
+            </p>
+          </div>
+        </div>
+
+        <div class="profile-header-actions">
+          <button class="btn primary" type="button" (click)="toggleEditMode()">
+            {{ isEditing ? 'Save Profile' : 'Edit Profile' }}
+          </button>
+          <button class="btn ghost" type="button" routerLink="/records">
+            View Patient Records
+          </button>
+        </div>
+      </header>
+
+      <!-- Edit Profile Form -->
+      <section class="card edit-profile-section" *ngIf="isEditing" aria-labelledby="edit-profile-title">
+        <header class="section-header">
+          <h2 id="edit-profile-title" class="section-title">Edit Your Profile</h2>
+          <p class="section-description">Update your personal information and professional details.</p>
+        </header>
+
+        <div class="edit-form-grid">
+          <div class="form-group">
+            <label class="field-label" for="edit-name">Full Name</label>
+            <input
+              id="edit-name"
+              type="text"
+              class="field-input"
+              [(ngModel)]="editName"
+              placeholder="Enter your full name"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="field-label" for="edit-role">Professional Role</label>
+            <input
+              id="edit-role"
+              type="text"
+              class="field-input"
+              [(ngModel)]="editRole"
+              placeholder="e.g., Doctor, Radiologist, Medical Professional"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="field-label" for="edit-email">Email Address</label>
+            <input
+              id="edit-email"
+              type="email"
+              class="field-input"
+              [(ngModel)]="editEmail"
+              placeholder="your.email@example.com"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="field-label" for="edit-initials">Avatar Initials</label>
+            <input
+              id="edit-initials"
+              type="text"
+              class="field-input"
+              [(ngModel)]="editInitials"
+              placeholder="2-3 letters"
+              maxlength="3"
+            />
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn ghost" type="button" (click)="cancelEdit()">Cancel</button>
+          <button class="btn primary" type="button" (click)="saveProfile()">Save Changes</button>
+        </div>
+      </section>
+
+      <section class="profile-grid">
+        <section class="card stats-card" aria-label="Quick statistics">
+          <header class="section-header">
+            <div>
+              <h2 class="section-title">Quick Statistics</h2>
+              <p class="section-description">
+                Overview of your recent diagnostic activity.
+              </p>
+            </div>
+          </header>
+
+          <div class="stats-row">
+            <article class="stat-card" *ngFor="let stat of stats">
+              <div class="stat-label">{{ stat.label }}</div>
+              <div class="stat-value">{{ stat.value }}</div>
+              <p class="stat-description">
+                {{ stat.description }}
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <aside class="card clinic-card" aria-label="Clinic information">
+          <h2 class="section-title">Clinic Information</h2>
+          <p class="clinic-name">{{ clinic.name }}</p>
+          <p class="clinic-address">{{ clinic.address }}</p>
+          <p class="clinic-phone">{{ clinic.phone }}</p>
+        </aside>
+      </section>
+
+      <section class="card activity-card" aria-labelledby="recent-activity">
+        <header class="section-header">
+          <div>
+            <h2 id="recent-activity" class="section-title">Recent Activity</h2>
+            <p class="section-description">
+              Latest interactions with patient cases.
+            </p>
+          </div>
+        </header>
+
+        <div class="activity-list">
+          <article class="activity-item" *ngFor="let item of activity">
+            <div class="activity-main">
+              <div class="activity-name">{{ item.title }}</div>
+            </div>
+            <div class="activity-time">
+              {{ item.time }}
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <footer class="profile-footer">
+        <span>© 2025 Mediscan AI. All rights reserved.</span>
+      </footer>
+    </section>
+  </main>
+</div>

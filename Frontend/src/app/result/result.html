@@ -1,0 +1,120 @@
+<div class="result-page">
+  <aside class="sidebar" aria-label="Main navigation">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">CX</div>
+      <div class="sidebar-title">Chest X-ray</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a routerLink="/dashboard" class="sidebar-link">
+        <span class="sidebar-icon">🏠</span>
+        <span>Dashboard</span>
+      </a>
+      <a routerLink="/upload" class="sidebar-link active">
+        <span class="sidebar-icon">📤</span>
+        <span>Upload X-ray</span>
+      </a>
+      <a routerLink="/records" class="sidebar-link">
+        <span class="sidebar-icon">📁</span>
+        <span>Patient Records</span>
+      </a>
+      <a routerLink="/admin" class="sidebar-link">
+        <span class="sidebar-icon">🛠️</span>
+        <span>Admin Panel</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="sidebar-link" type="button">
+        <span class="sidebar-icon">👤</span>
+        <span>Profile</span>
+      </button>
+      <button class="sidebar-link" type="button">
+        <span class="sidebar-icon">⚙️</span>
+        <span>Settings</span>
+      </button>
+      <a routerLink="/login" class="sidebar-link sidebar-logout">
+        <span class="sidebar-icon">⏏</span>
+        <span>Logout</span>
+      </a>
+    </div>
+  </aside>
+
+  <main class="result-main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 class="result-title">AI Diagnosis Result</h1>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-button" type="button" aria-label="Search">
+          🔍
+        </button>
+        <button class="icon-button" type="button" aria-label="Notifications">
+          🔔
+        </button>
+      </div>
+    </header>
+
+    <section class="result-content" *ngIf="result as r">
+      <div class="result-layout">
+        <section class="result-left" aria-label="Diagnosis details">
+          <div class="result-card">
+            <header class="result-header">
+              <div class="result-meta">
+                <div class="result-patient">Patient ID: {{ r.patientId }}</div>
+                <div class="result-date">Scan date: {{ r.date }}</div>
+              </div>
+              <span class="pill pill-danger">Pneumonia Detected</span>
+            </header>
+
+            <div class="result-diagnosis">
+              <div class="result-diagnosis-main">
+                Diagnosis:
+                <span class="result-diagnosis-text">{{ r.diagnosis }}</span>
+              </div>
+              <div class="result-confidence">Confidence: {{ r.confidence }}%</div>
+            </div>
+
+            <div class="result-image-wrapper">
+              <ng-container *ngIf="r.image; else noImage">
+                <img [src]="r.image" alt="Analyzed X-ray" />
+              </ng-container>
+              <ng-template #noImage>
+                <div class="result-image-placeholder">X-ray preview not available</div>
+              </ng-template>
+            </div>
+
+            <div class="result-footer">
+              <button class="btn ghost" type="button" (click)="backToUpload()">
+                Analyze another X-ray
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="result-right" aria-label="Actions and notes">
+          <div class="side-card">
+            <h2 class="side-card-title">Actions</h2>
+            <div class="actions-list">
+              <button class="btn secondary" type="button" (click)="downloadReport()">
+                Download Report (PDF)
+              </button>
+              <button class="btn secondary" type="button" (click)="compareWithPreviousScan()">
+                Compare with Previous Scan
+              </button>
+            </div>
+          </div>
+
+          <div class="side-card">
+            <h2 class="side-card-title">Doctor's Notes</h2>
+            <textarea
+              class="notes-area"
+              rows="5"
+              placeholder="Add your observations and notes here..."
+            ></textarea>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+</div>
