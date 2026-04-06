@@ -7,34 +7,34 @@
 
     <nav class="sidebar-nav">
       <a routerLink="/dashboard" class="sidebar-link">
-        <span class="sidebar-icon">🏠</span>
+        <span class="sidebar-icon">&#127968;</span>
         <span>Dashboard</span>
       </a>
       <a routerLink="/upload" class="sidebar-link active">
-        <span class="sidebar-icon">📤</span>
+        <span class="sidebar-icon">&#128228;</span>
         <span>Upload X-ray</span>
       </a>
       <a routerLink="/records" class="sidebar-link">
-        <span class="sidebar-icon">📁</span>
+        <span class="sidebar-icon">&#128193;</span>
         <span>Patient Records</span>
       </a>
       <a routerLink="/admin" class="sidebar-link">
-        <span class="sidebar-icon">🛠️</span>
+        <span class="sidebar-icon">&#128736;</span>
         <span>Admin Panel</span>
       </a>
     </nav>
 
     <div class="sidebar-footer">
       <button class="sidebar-link" type="button">
-        <span class="sidebar-icon">👤</span>
+        <span class="sidebar-icon">&#128100;</span>
         <span>Profile</span>
       </button>
       <button class="sidebar-link" type="button">
-        <span class="sidebar-icon">⚙️</span>
+        <span class="sidebar-icon">&#9881;</span>
         <span>Settings</span>
       </button>
-      <a routerLink="/login" class="sidebar-link sidebar-logout">
-        <span class="sidebar-icon">⏏</span>
+      <a routerLink="/logout" class="sidebar-link sidebar-logout">
+        <span class="sidebar-icon">&#9209;</span>
         <span>Logout</span>
       </a>
     </div>
@@ -47,22 +47,35 @@
       </div>
       <div class="topbar-right">
         <button class="icon-button" type="button" aria-label="Search">
-          🔍
+          &#128269;
         </button>
         <button class="icon-button" type="button" aria-label="Notifications">
-          🔔
+          &#128276;
         </button>
       </div>
     </header>
 
     <section class="processing-content">
-      <div class="processing-card">
+      <div class="processing-card" *ngIf="!errorMessage; else errorState">
         <div class="loader-circle"></div>
-        <p class="processing-text">MediScan AI is analyzing your X-ray...</p>
+        <p class="processing-text">
+          Running {{ selectedModelDisplayName }}{{ selectedModelFamily ? ' (' + selectedModelFamily + ')' : '' }}
+          on the uploaded X-ray image.
+        </p>
         <div class="processing-bar">
           <div class="processing-bar-fill"></div>
         </div>
       </div>
+
+      <ng-template #errorState>
+        <div class="processing-card error-card">
+          <div class="error-title">Analysis failed</div>
+          <p class="processing-text">{{ errorMessage }}</p>
+          <button class="retry-button" type="button" (click)="backToUpload()">
+            Back to upload
+          </button>
+        </div>
+      </ng-template>
     </section>
   </main>
 </div>

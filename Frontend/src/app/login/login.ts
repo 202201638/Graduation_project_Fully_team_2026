@@ -38,12 +38,12 @@ export class Login {
       password: this.password
     }).subscribe({
       next: (response) => {
-        this.authService.setToken(response.access_token);
+        this.authService.setSession(response.access_token, response.user);
         this.router.navigate(['/dashboard']);
         this.isLoading = false;
       },
       error: (error) => {
-        this.errorMessage = 'Invalid email or password';
+        this.errorMessage = error?.error?.detail || 'Invalid email or password';
         this.isLoading = false;
         console.error('Login error:', error);
       }

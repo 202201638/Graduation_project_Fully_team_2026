@@ -27,7 +27,14 @@
     </div>
 
     <div class="navbar-actions">
-      <a routerLink="/login" class="navbar-btn logout-btn">LOGOUT</a>
+      <div class="navbar-user" *ngIf="isAuthenticated">
+        <div class="navbar-user-avatar">{{ avatarInitials }}</div>
+        <div class="navbar-user-meta">
+          <div class="navbar-user-label">Signed in as</div>
+          <div class="navbar-user-name">{{ displayName }}</div>
+        </div>
+      </div>
+      <a routerLink="/logout" class="navbar-btn logout-btn">LOGOUT</a>
     </div>
   </div>
 </nav>

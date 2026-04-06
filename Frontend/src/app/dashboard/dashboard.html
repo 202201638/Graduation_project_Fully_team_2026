@@ -24,7 +24,7 @@
           aria-label="Open profile"
           routerLink="/profile"
         >
-          <span class="avatar-initials">AJ</span>
+          <span class="avatar-initials">{{ avatarInitials }}</span>
         </button>
       </div>
     </header>
@@ -32,7 +32,7 @@
     <section class="dashboard-content">
       <header class="dashboard-header">
         <div>
-          <h1 class="dashboard-title">Welcome, Dr. Alex Johnson</h1>
+          <h1 class="dashboard-title">Welcome, {{ displayName }}</h1>
           <p class="dashboard-subtitle">
             Here's a quick overview of your Mediscan AI activity.
           </p>

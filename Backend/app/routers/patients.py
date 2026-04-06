@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from app.models.patient import PatientCreate, PatientResponse, PatientUpdate, PatientInDB
 from app.models.user import UserResponse
 from app.utils.security import verify_token, generate_patient_id
-from app.database.mongodb import get_database
+from app.database.mongodb import require_database
 
 # Pydantic models for medical data
 class MedicalHistoryRequest(BaseModel):
@@ -43,7 +43,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 @router.post("/", response_model=PatientResponse, status_code=status.HTTP_201_CREATED)
 async def create_patient(patient_data: PatientCreate, current_user: dict = Depends(get_current_user)):
     """Create a new patient record"""
-    db = get_database()
+    db = require_database()
     
     # Verify user exists and has permission
     user = await db.users.find_one({"user_id": current_user["user_id"]})
@@ -101,7 +101,7 @@ async def create_patient(patient_data: PatientCreate, current_user: dict = Depen
 @router.get("/", response_model=PatientResponse)
 async def get_patient(current_user: dict = Depends(get_current_user)):
     """Get patient record for current user"""
-    db = get_database()
+    db = require_database()
     
     patient = await db.patients.find_one({"user_id": current_user["user_id"]})
     if not patient:
@@ -134,7 +134,7 @@ async def update_patient(
     current_user: dict = Depends(get_current_user)
 ):
     """Update patient record"""
-    db = get_database()
+    db = require_database()
     
     # Check if patient exists
     patient = await db.patients.find_one({"user_id": current_user["user_id"]})
@@ -188,7 +188,7 @@ async def add_medical_history(
     current_user: dict = Depends(get_current_user)
 ):
     """Add medical history entry"""
-    db = get_database()
+    db = require_database()
     
     patient = await db.patients.find_one({"user_id": current_user["user_id"]})
     if not patient:
@@ -219,7 +219,7 @@ async def add_allergy(
     current_user: dict = Depends(get_current_user)
 ):
     """Add allergy information"""
-    db = get_database()
+    db = require_database()
     
     patient = await db.patients.find_one({"user_id": current_user["user_id"]})
     if not patient:
@@ -250,7 +250,7 @@ async def add_medication(
     current_user: dict = Depends(get_current_user)
 ):
     """Add medication information"""
-    db = get_database()
+    db = require_database()
     
     patient = await db.patients.find_one({"user_id": current_user["user_id"]})
     if not patient:

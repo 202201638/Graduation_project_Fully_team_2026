@@ -1,0 +1,5 @@
+Backend/.ultralytics/
+Backend/uploads/
+Backend/venv/
+Backend/**/__pycache__/
+Backend/**/*.pyc

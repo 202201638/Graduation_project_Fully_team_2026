@@ -1,0 +1,87 @@
+{
+  "created_at_utc": "2026-04-05T04:00:06.746373+00:00",
+  "default_model_key": "yolo",
+  "model_type": "ultralytics_yolo_detection",
+  "weights_file": "yolo_best.pt",
+  "task": "pneumonia_detection",
+  "class_names": [
+    "pneumonia"
+  ],
+  "default_imgsz": 640,
+  "default_conf": 0.1,
+  "confirmed_conf": 0.25,
+  "model_configs": {
+    "yolo": {
+      "display_name": "YOLO",
+      "model_type": "ultralytics_yolo_detection",
+      "task": "pneumonia_detection",
+      "weights_file": "yolo_best.pt",
+      "class_names": ["pneumonia"],
+      "default_imgsz": 640,
+      "default_conf": 0.1,
+      "confirmed_conf": 0.25
+    },
+    "fasterrcnn": {
+      "display_name": "Faster R-CNN",
+      "model_type": "torchvision_fasterrcnn_detection",
+      "task": "pneumonia_detection",
+      "weights_file": "fasterrcnn.pt",
+      "class_names": ["pneumonia"],
+      "default_conf": 0.1,
+      "confirmed_conf": 0.25
+    },
+    "retinanet": {
+      "display_name": "RetinaNet",
+      "model_type": "torchvision_retinanet_detection",
+      "task": "pneumonia_detection",
+      "weights_file": "retinanet.pt",
+      "class_names": ["pneumonia"],
+      "default_conf": 0.1,
+      "confirmed_conf": 0.25
+    },
+    "resnet50": {
+      "display_name": "ResNet50",
+      "model_type": "torchvision_resnet50_classification",
+      "task": "pneumonia_classification",
+      "weights_file": "resnet50.pt",
+      "class_names": ["normal", "pneumonia"],
+      "input_size": 224,
+      "default_conf": 0.5,
+      "confirmed_conf": 0.75
+    },
+    "densenet121": {
+      "display_name": "DenseNet121",
+      "model_type": "torchvision_densenet121_classification",
+      "task": "pneumonia_classification",
+      "weights_file": "densenet121.pt",
+      "class_names": ["normal", "pneumonia"],
+      "input_size": 224,
+      "default_conf": 0.5,
+      "confirmed_conf": 0.75
+    },
+    "efficientnet_b0": {
+      "display_name": "EfficientNet-B0",
+      "model_type": "torchvision_efficientnet_b0_classification",
+      "task": "pneumonia_classification",
+      "weights_file": "efficientnet_b0.pt",
+      "class_names": ["normal", "pneumonia"],
+      "input_size": 224,
+      "default_conf": 0.5,
+      "confirmed_conf": 0.75
+    }
+  },
+  "status": "COMPLETED",
+  "handoff_files": [
+    "demo_output.png",
+    "fasterrcnn.pt",
+    "retinanet.pt",
+    "resnet50.pt",
+    "densenet121.pt",
+    "efficientnet_b0.pt",
+    "kaggle_notebook_summary.json",
+    "phase3_baseline_results.json",
+    "phase8_demo_result.json",
+    "web_result.json",
+    "yolo_best.pt"
+  ]
+}

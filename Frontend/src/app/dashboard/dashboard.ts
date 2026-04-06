@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { NavbarComponent } from '../shared/navbar/navbar.component';
+import { ProfileService } from '../profile/profile.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -82,4 +83,14 @@ export class Dashboard {
       statusVariant: 'success',
     },
   ];
+
+  constructor(private profileService: ProfileService) {}
+
+  get displayName(): string {
+    return this.profileService.profile.name;
+  }
+
+  get avatarInitials(): string {
+    return this.profileService.profile.avatarInitials;
+  }
 }

@@ -10,7 +10,7 @@ interface PatientRecordRow {
   patientName: string;
   date: string;
   diagnosis: string;
-  statusVariant: 'danger' | 'success' | 'neutral';
+  statusVariant: 'danger' | 'success' | 'warning';
   image?: string;
   confidence: number;
   source: 'history' | 'sample';
@@ -25,7 +25,7 @@ interface PatientRecordRow {
 })
 export class PatientRecords implements OnInit {
   search = '';
-  diagnosisFilter = 'all'; // all | pneumonia | healthy
+  diagnosisFilter = 'all'; // all | pneumonia | suspected | healthy
   dateFilter = '';
 
   records: PatientRecordRow[] = [];
@@ -49,9 +49,7 @@ export class PatientRecords implements OnInit {
         patientName: `Patient ${r.patientId || index + 1}`,
         date: r.date,
         diagnosis: r.diagnosis,
-        statusVariant: r.diagnosis.toLowerCase().includes('pneumonia')
-          ? 'danger'
-          : 'success',
+        statusVariant: r.statusVariant,
         image: r.image,
         confidence: r.confidence,
         source: 'history',
@@ -134,9 +132,13 @@ export class PatientRecords implements OnInit {
         this.diagnosisFilter === 'all'
           ? true
           : this.diagnosisFilter === 'pneumonia'
-          ? diagLower.includes('pneumonia')
+          ? r.statusVariant === 'danger'
+          : this.diagnosisFilter === 'suspected'
+          ? r.statusVariant === 'warning' || diagLower.includes('suspected')
           : this.diagnosisFilter === 'healthy'
-          ? diagLower.includes('healthy')
+          ? r.statusVariant === 'success' ||
+            diagLower.includes('healthy') ||
+            diagLower.includes('no pneumonia')
           : true;
 
       const matchesDate = !this.dateFilter || r.date === this.dateFilter;

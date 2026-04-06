@@ -10,13 +10,14 @@ export interface UserProfile {
 @Injectable({ providedIn: 'root' })
 export class ProfileService {
   private readonly storageKey = 'mediscan_user_profile';
-
-  private _profile: UserProfile = {
-    name: 'Dr. Alex Johnson',
-    role: 'Radiologist',
-    email: 'alex.johnson@mediscan.com',
-    avatarInitials: 'AJ',
+  private readonly defaultProfile: UserProfile = {
+    name: 'Guest User',
+    role: 'Guest',
+    email: '',
+    avatarInitials: 'GU',
   };
+
+  private _profile: UserProfile = { ...this.defaultProfile };
 
   constructor() {
     this.loadFromStorage();
@@ -28,6 +29,11 @@ export class ProfileService {
 
   updateProfile(update: Partial<UserProfile>): void {
     this._profile = { ...this._profile, ...update };
+    this.saveToStorage();
+  }
+
+  resetProfile(): void {
+    this._profile = { ...this.defaultProfile };
     this.saveToStorage();
   }
 

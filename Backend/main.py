@@ -1,11 +1,19 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from starlette.concurrency import run_in_threadpool
 from app.routers import auth, patients, xray_analysis
-from app.database.mongodb import connect_to_mongodb, close_mongodb_connection
+from app.database.mongodb import (
+    close_mongodb_connection,
+    connect_to_mongodb,
+    get_database_status,
+)
+from app.utils.xray_inference import xray_inference_service
 import uvicorn
 import os
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = FastAPI(
     title="Medical System API",
@@ -16,14 +24,14 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200"],  # Angular frontend
+    allow_origins=["http://localhost:4200", "http://127.0.0.1:4200"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Mount static files for uploads
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount("/uploads", StaticFiles(directory=os.path.join(BASE_DIR, "uploads")), name="uploads")
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
@@ -34,6 +42,7 @@ app.include_router(xray_analysis.router, prefix="/api/xray", tags=["xray-analysi
 @app.on_event("startup")
 async def startup_event():
     await connect_to_mongodb()
+    await run_in_threadpool(xray_inference_service.warmup)
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -63,16 +72,29 @@ async def debug_info():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "Medical System API"}
+    model_status = xray_inference_service.get_status()
+    database_status = get_database_status()
+
+    overall_status = (
+        "healthy"
+        if model_status["weights_exists"] and not model_status.get("load_error")
+        else "degraded"
+    )
+
+    return {
+        "status": overall_status,
+        "service": "Medical System API",
+        "model": model_status,
+        "database": database_status,
+    }
 
 @app.get("/favicon.ico")
 async def favicon():
     """Return favicon or 204 if not found"""
-    favicon_path = "static/favicon.ico"
+    favicon_path = os.path.join(BASE_DIR, "static", "favicon.ico")
     if os.path.exists(favicon_path):
         return FileResponse(favicon_path)
-    else:
-        return {"message": "No favicon"}, 204
+    return Response(status_code=204)
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

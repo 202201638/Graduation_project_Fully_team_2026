@@ -51,9 +51,9 @@ class PatientInDB(PatientBase):
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     patient_id: str
     user_id: str
-    medical_history: List[str] = []
-    allergies: List[str] = []
-    medications: List[str] = []
+    medical_history: List[str] = Field(default_factory=list)
+    allergies: List[str] = Field(default_factory=list)
+    medications: List[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

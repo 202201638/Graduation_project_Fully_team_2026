@@ -15,15 +15,33 @@
         Set up your Mediscan AI account to start analyzing chest X-rays and managing patient records.
       </p>
 
-      <form class="auth-form" novalidate>
+      <form class="auth-form" novalidate (submit)="onSubmit($event)">
+        <div *ngIf="errorMessage" class="error-message">
+          {{ errorMessage }}
+        </div>
+
         <div class="form-row form-row-split">
           <div class="form-group">
             <label for="signup-first-name">First name</label>
-            <input id="signup-first-name" type="text" placeholder="John" required />
+            <input
+              id="signup-first-name"
+              type="text"
+              placeholder="John"
+              required
+              [(ngModel)]="firstName"
+              name="firstName"
+            />
           </div>
           <div class="form-group">
             <label for="signup-last-name">Last name</label>
-            <input id="signup-last-name" type="text" placeholder="Doe" required />
+            <input
+              id="signup-last-name"
+              type="text"
+              placeholder="Doe"
+              required
+              [(ngModel)]="lastName"
+              name="lastName"
+            />
           </div>
         </div>
 
@@ -35,12 +53,20 @@
             placeholder="you@hospital.org"
             autocomplete="email"
             required
+            [(ngModel)]="email"
+            name="email"
           />
         </div>
 
         <div class="form-group">
           <label for="signup-hospital">Hospital / institution</label>
-          <input id="signup-hospital" type="text" placeholder="Hospital name" />
+          <input
+            id="signup-hospital"
+            type="text"
+            placeholder="Hospital name"
+            [(ngModel)]="hospital"
+            name="hospital"
+          />
         </div>
 
         <div class="form-group">
@@ -51,6 +77,8 @@
             placeholder="Create a strong password"
             autocomplete="new-password"
             required
+            [(ngModel)]="password"
+            name="password"
           />
         </div>
 
@@ -62,10 +90,15 @@
             placeholder="Re-enter your password"
             autocomplete="new-password"
             required
+            [(ngModel)]="confirmPassword"
+            name="confirmPassword"
           />
         </div>
 
-        <button type="submit" class="btn primary">Create account</button>
+        <button type="submit" class="btn primary" [disabled]="isLoading">
+          <span *ngIf="!isLoading">Create account</span>
+          <span *ngIf="isLoading">Creating account...</span>
+        </button>
       </form>
 
       <p class="auth-footer">
@@ -75,4 +108,3 @@
     </section>
   </main>
 </div>
-

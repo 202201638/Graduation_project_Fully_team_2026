@@ -11,7 +11,7 @@ from app.utils.security import (
     verify_token,
     generate_user_id
 )
-from app.database.mongodb import get_database
+from app.database.mongodb import require_database
 
 router = APIRouter()
 security = HTTPBearer()
@@ -19,7 +19,7 @@ security = HTTPBearer()
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def signup(user_data: UserCreate):
     """Register a new user"""
-    db = get_database()
+    db = require_database()
     
     # Check if user already exists
     existing_user = await db.users.find_one({"email": user_data.email})
@@ -59,7 +59,7 @@ async def signup(user_data: UserCreate):
 @router.post("/login")
 async def login(user_credentials: UserLogin):
     """Authenticate user and return access token"""
-    db = get_database()
+    db = require_database()
     
     # Find user by email
     user = await db.users.find_one({"email": user_credentials.email})
@@ -101,7 +101,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             detail="Invalid token"
         )
     
-    db = get_database()
+    db = require_database()
     user = await db.users.find_one({"user_id": user_id})
     if user is None:
         raise HTTPException(

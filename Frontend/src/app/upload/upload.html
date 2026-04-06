@@ -13,13 +13,13 @@
 
       <div class="topbar-right">
         <button class="icon-button" type="button" aria-label="Search">
-          🔍
+          &#128269;
         </button>
         <button class="icon-button" type="button" aria-label="Notifications">
-          🔔
+          &#128276;
         </button>
         <div class="avatar" aria-label="User menu">
-          <span class="avatar-initials">JD</span>
+          <span class="avatar-initials">{{ avatarInitials }}</span>
         </div>
       </div>
     </header>
@@ -34,24 +34,32 @@
           <div class="upload-card">
             <h2 class="card-title">New X-ray Scan</h2>
             <p class="card-subtitle">
-              Drag &amp; drop your X-ray images (JPG, PNG, DICOM) for AI analysis.
+              Upload a chest X-ray image and choose which integrated model should analyze it.
             </p>
 
             <label class="dropzone" for="xray-file">
               <div class="dropzone-inner">
-                <div class="dropzone-icon">⬆️</div>
+                <div class="dropzone-icon">&#11014;</div>
                 <div class="dropzone-text">
-                  Drag &amp; drop X-ray here, or click to browse
+                  Drag and drop an image here, or click to browse
+                </div>
+                <div class="dropzone-hint">
+                  Supported formats: JPG, PNG, BMP, TIFF. Maximum size: 10MB.
                 </div>
                 <input
                   id="xray-file"
                   type="file"
-                  accept=".jpg,.jpeg,.png,.dcm,.dicom"
+                  accept=".jpg,.jpeg,.png,.bmp,.tiff"
                   (change)="onFileSelected($event)"
                   hidden
                 />
               </div>
             </label>
+
+            <div class="preview-card" *ngIf="selectedFilePreview">
+              <div class="preview-label">Selected image preview</div>
+              <img [src]="selectedFilePreview" alt="Selected X-ray preview" />
+            </div>
 
             <div class="upload-form-row">
               <div class="form-group">
@@ -66,16 +74,26 @@
               </div>
               <div class="form-group">
                 <label for="scan-type">Scan Type</label>
-                <select
-                  id="scan-type"
-                  name="scanType"
-                  [(ngModel)]="scanType"
-                >
+                <select id="scan-type" name="scanType" [(ngModel)]="scanType">
                   <option value="">Select scan type</option>
                   <option value="pa">PA Chest</option>
                   <option value="ap">AP Chest</option>
                   <option value="lateral">Lateral Chest</option>
                 </select>
+              </div>
+            </div>
+
+            <div class="form-group model-group">
+              <label for="analysis-model">Analysis Model</label>
+              <select id="analysis-model" name="analysisModel" [(ngModel)]="selectedModelKey">
+                <option value="">Select model</option>
+                <option *ngFor="let model of availableModels" [value]="model.key">
+                  {{ model.display_name }} ({{ model.model_family }})
+                </option>
+              </select>
+              <div class="form-hint">
+                Detection models return bounding boxes. Classification models return image-level
+                pneumonia probability.
               </div>
             </div>
 
@@ -92,44 +110,112 @@
 
         <section class="upload-right" aria-label="Guidelines and recent uploads">
           <div class="side-card">
+            <h2 class="side-card-title">Model Status</h2>
+            <div class="status-row">
+              <span class="status-pill">{{ modelStatusLabel }}</span>
+              <span class="status-detail">
+                {{ weightsFile }}
+              </span>
+            </div>
+
+            <div class="metric-grid" *ngIf="metadata; else metadataLoading">
+              <div class="metric-item">
+                <span class="metric-label">Selected model</span>
+                <span class="metric-value">{{ selectedModel?.display_name || 'Choose a model' }}</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">Model family</span>
+                <span class="metric-value">{{ modelFamilyLabel }}</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">Task</span>
+                <span class="metric-value">{{ taskName }}</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">Classes</span>
+                <span class="metric-value">{{ classNamesLabel }}</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">{{ primaryMetricLabel }}</span>
+                <span class="metric-value">{{ primaryMetricValue }}</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">{{ secondaryMetricLabel }}</span>
+                <span class="metric-value">{{ secondaryMetricValue }}</span>
+              </div>
+            </div>
+
+            <ng-template #metadataLoading>
+              <p class="side-note">
+                Loading model metadata from the backend.
+              </p>
+            </ng-template>
+
+            <p class="side-note" *ngIf="modelLoadError as loadError">
+              {{ loadError }}
+            </p>
+
+            <p class="side-note" *ngIf="selectedModelDescription">
+              {{ selectedModelDescription }}
+            </p>
+          </div>
+
+          <div class="side-card" *ngIf="availableModels.length">
+            <h2 class="side-card-title">Available Models</h2>
+            <div class="model-list">
+              <div
+                class="model-chip"
+                *ngFor="let model of availableModels"
+                [class.model-chip-active]="model.key === selectedModelKey"
+              >
+                <div class="model-chip-header">
+                  <strong>{{ model.display_name }}</strong>
+                  <span>{{ model.model_family }}</span>
+                </div>
+                <div class="model-chip-metric" *ngIf="model.primary_metric_label && model.primary_metric_value != null">
+                  {{ model.primary_metric_label }}:
+                  {{ model.primary_metric_value >= 0 && model.primary_metric_value <= 1
+                    ? (model.primary_metric_value * 100).toFixed(1) + '%'
+                    : model.primary_metric_value.toFixed(3) }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="side-card">
             <h2 class="side-card-title">Upload Guidelines</h2>
             <ul class="guidelines-list">
-              <li>Supported formats: JPG, PNG, DICOM.</li>
-              <li>Ensure images are clear, high resolution, and well lit.</li>
-              <li>Optimal resolution: 1024×1024 pixels or higher.</li>
-              <li>Avoid patient identifiable information in file names or metadata.</li>
-              <li>Consult local data privacy regulations.</li>
+              <li>Use chest X-ray images in JPG, PNG, BMP, or TIFF format.</li>
+              <li>Use clear frontal images when possible for more stable detections.</li>
+              <li>Keep files under 10MB.</li>
+              <li>Review model output with clinical context before making decisions.</li>
             </ul>
           </div>
 
           <div class="side-card">
             <h2 class="side-card-title">Recent Uploads</h2>
-            <ul class="recent-list">
+            <ul class="recent-list" *ngIf="recentUploads.length; else emptyUploads">
               <li class="recent-item" *ngFor="let item of recentUploads">
                 <div class="recent-main">
                   <div class="recent-thumb">
-                    <ng-container *ngIf="item.image; else recentLetter">
-                      <img
-                        [src]="item.image"
-                        [alt]="'X-ray for ' + item.id"
-                      />
-                    </ng-container>
-                    <ng-template #recentLetter>
-                      <span class="recent-letter">{{ item.label }}</span>
-                    </ng-template>
+                    <img *ngIf="item.image" [src]="item.image" [alt]="'X-ray for ' + item.id" />
                   </div>
                   <div class="recent-meta">
                     <div class="recent-id">Patient ID: {{ item.id }}</div>
                     <div class="recent-date">{{ item.date }}</div>
                   </div>
                 </div>
-                <button class="recent-arrow" type="button">→</button>
               </li>
             </ul>
+
+            <ng-template #emptyUploads>
+              <p class="side-note">
+                No completed analyses yet.
+              </p>
+            </ng-template>
           </div>
         </section>
       </div>
     </section>
   </main>
 </div>
-

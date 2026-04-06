@@ -3,6 +3,16 @@
   min-height: 100vh;
 }
 
+.error-message {
+  background-color: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
 .auth-page {
   position: relative;
   min-height: 100vh;
@@ -201,6 +211,13 @@
 .btn.primary:hover {
   transform: translateY(-1px);
   box-shadow: 0 20px 45px rgba(37, 99, 235, 0.45);
+}
+
+.btn.primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 .link {
