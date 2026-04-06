@@ -1,26 +1,5 @@
 # Medical AI System
 
-This project now supports an end-to-end chest X-ray inference flow using the YOLO weights stored in `Backend/model_assets/yolo_best.pt`.
-
-## Required model files
-
-Place these files in `Backend/model_assets`:
-
-- Required: `yolo_best.pt`
-- Recommended: `manifest.json`
-- Recommended: `phase3_baseline_results.json`
-- Recommended: `web_result.json`
-- Optional: `phase8_demo_result.json`
-- Optional: `demo_output.png`
-
-These files are not used by the web integration and are not required:
-
-- `phase1_dataset_summary.json`
-- `phase1_conversion_summary.json`
-- `phase2_yolo_dataset_summary.json`
-- full `png_images/`
-- full `yolo_dataset/`
-- full `runs/` directories
 
 ## What the app does
 
