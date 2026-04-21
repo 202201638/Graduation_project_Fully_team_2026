@@ -15,7 +15,7 @@
         Set up your Mediscan AI account to start analyzing chest X-rays and managing patient records.
       </p>
 
-      <form class="auth-form" novalidate (submit)="onSubmit($event)">
+      <form #signupForm="ngForm" class="auth-form" novalidate (ngSubmit)="onSubmit(signupForm)">
         <div *ngIf="errorMessage" class="error-message">
           {{ errorMessage }}
         </div>
@@ -29,9 +29,17 @@
               placeholder="John"
               required
               [(ngModel)]="firstName"
+              (ngModelChange)="clearErrorMessage()"
               name="firstName"
+              #firstNameModel="ngModel"
+              [class.input-invalid]="shouldShowFieldError(signupForm, firstNameModel)"
+              [attr.aria-invalid]="shouldShowFieldError(signupForm, firstNameModel)"
             />
+            <div *ngIf="shouldShowFieldError(signupForm, firstNameModel)" class="field-error">
+              {{ getRequiredFieldError(firstNameModel, 'First name') }}
+            </div>
           </div>
+
           <div class="form-group">
             <label for="signup-last-name">Last name</label>
             <input
@@ -40,8 +48,15 @@
               placeholder="Doe"
               required
               [(ngModel)]="lastName"
+              (ngModelChange)="clearErrorMessage()"
               name="lastName"
+              #lastNameModel="ngModel"
+              [class.input-invalid]="shouldShowFieldError(signupForm, lastNameModel)"
+              [attr.aria-invalid]="shouldShowFieldError(signupForm, lastNameModel)"
             />
+            <div *ngIf="shouldShowFieldError(signupForm, lastNameModel)" class="field-error">
+              {{ getRequiredFieldError(lastNameModel, 'Last name') }}
+            </div>
           </div>
         </div>
 
@@ -53,9 +68,17 @@
             placeholder="you@hospital.org"
             autocomplete="email"
             required
+            email
             [(ngModel)]="email"
+            (ngModelChange)="clearErrorMessage()"
             name="email"
+            #emailModel="ngModel"
+            [class.input-invalid]="shouldShowFieldError(signupForm, emailModel)"
+            [attr.aria-invalid]="shouldShowFieldError(signupForm, emailModel)"
           />
+          <div *ngIf="shouldShowFieldError(signupForm, emailModel)" class="field-error">
+            {{ getEmailError(emailModel) }}
+          </div>
         </div>
 
         <div class="form-group">
@@ -65,6 +88,7 @@
             type="text"
             placeholder="Hospital name"
             [(ngModel)]="hospital"
+            (ngModelChange)="clearErrorMessage()"
             name="hospital"
           />
         </div>
@@ -77,9 +101,17 @@
             placeholder="Create a strong password"
             autocomplete="new-password"
             required
+            minlength="8"
             [(ngModel)]="password"
+            (ngModelChange)="clearErrorMessage()"
             name="password"
+            #passwordModel="ngModel"
+            [class.input-invalid]="shouldShowFieldError(signupForm, passwordModel)"
+            [attr.aria-invalid]="shouldShowFieldError(signupForm, passwordModel)"
           />
+          <div *ngIf="shouldShowFieldError(signupForm, passwordModel)" class="field-error">
+            {{ getPasswordError(passwordModel) }}
+          </div>
         </div>
 
         <div class="form-group">
@@ -91,8 +123,30 @@
             autocomplete="new-password"
             required
             [(ngModel)]="confirmPassword"
+            (ngModelChange)="clearErrorMessage()"
             name="confirmPassword"
+            #confirmPasswordModel="ngModel"
+            [class.input-invalid]="
+              shouldShowFieldError(signupForm, confirmPasswordModel) ||
+              shouldShowPasswordMismatch(signupForm, confirmPasswordModel)
+            "
+            [attr.aria-invalid]="
+              shouldShowFieldError(signupForm, confirmPasswordModel) ||
+              shouldShowPasswordMismatch(signupForm, confirmPasswordModel)
+            "
           />
+          <div *ngIf="shouldShowFieldError(signupForm, confirmPasswordModel)" class="field-error">
+            {{ getConfirmPasswordError(confirmPasswordModel) }}
+          </div>
+          <div
+            *ngIf="
+              !shouldShowFieldError(signupForm, confirmPasswordModel) &&
+              shouldShowPasswordMismatch(signupForm, confirmPasswordModel)
+            "
+            class="field-error"
+          >
+            Passwords do not match.
+          </div>
         </div>
 
         <button type="submit" class="btn primary" [disabled]="isLoading">

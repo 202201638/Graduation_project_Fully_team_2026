@@ -1,8 +1,9 @@
 import { Component } from '@angular/core';
-import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm, NgModel } from '@angular/forms';
+import { Router, RouterModule } from '@angular/router';
 import { switchMap } from 'rxjs';
+
 import { AuthService } from '../shared/auth.service';
 
 @Component({
@@ -27,30 +28,18 @@ export class Signup {
     private authService: AuthService,
   ) {}
 
-  onSubmit(event: Event) {
-    event.preventDefault();
-
+  onSubmit(form: NgForm): void {
     const firstName = this.firstName.trim();
     const lastName = this.lastName.trim();
     const email = this.email.trim();
+    this.errorMessage = '';
 
-    if (!firstName || !lastName || !email || !this.password || !this.confirmPassword) {
-      this.errorMessage = 'Please fill in all required fields.';
-      return;
-    }
-
-    if (this.password.length < 8) {
-      this.errorMessage = 'Password must be at least 8 characters.';
-      return;
-    }
-
-    if (this.password !== this.confirmPassword) {
-      this.errorMessage = 'Passwords do not match.';
+    if (form.invalid || this.password !== this.confirmPassword) {
+      form.control.markAllAsTouched();
       return;
     }
 
     this.isLoading = true;
-    this.errorMessage = '';
 
     const fullName = `${firstName} ${lastName}`.trim();
 
@@ -81,5 +70,64 @@ export class Signup {
           console.error('Signup error:', error);
         },
       });
+  }
+
+  shouldShowFieldError(form: NgForm, control: NgModel | null | undefined): boolean {
+    return Boolean(control?.invalid && (control.touched || form.submitted));
+  }
+
+  shouldShowPasswordMismatch(form: NgForm, confirmControl: NgModel | null | undefined): boolean {
+    return Boolean(
+      this.password &&
+        this.confirmPassword &&
+        this.password !== this.confirmPassword &&
+        (form.submitted || confirmControl?.touched),
+    );
+  }
+
+  getRequiredFieldError(control: NgModel | null | undefined, label: string): string {
+    if (control?.errors?.['required']) {
+      return `${label} is required.`;
+    }
+
+    return '';
+  }
+
+  getEmailError(control: NgModel | null | undefined): string {
+    if (control?.errors?.['required']) {
+      return 'Email is required.';
+    }
+
+    if (control?.errors?.['email']) {
+      return 'Please enter a valid email address.';
+    }
+
+    return '';
+  }
+
+  getPasswordError(control: NgModel | null | undefined): string {
+    if (control?.errors?.['required']) {
+      return 'Password is required.';
+    }
+
+    if (control?.errors?.['minlength']) {
+      return 'Password must be at least 8 characters.';
+    }
+
+    return '';
+  }
+
+  getConfirmPasswordError(control: NgModel | null | undefined): string {
+    if (control?.errors?.['required']) {
+      return 'Please confirm your password.';
+    }
+
+    return '';
+  }
+
+  clearErrorMessage(): void {
+    if (this.errorMessage) {
+      this.errorMessage = '';
+    }
   }
 }

@@ -13,6 +13,12 @@
   font-size: 0.875rem;
 }
 
+.field-error {
+  color: #dc2626;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
 .auth-page {
   position: relative;
   min-height: 100vh;
@@ -174,6 +180,16 @@
   border-color: #2563eb;
   box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.35);
   background-color: #f9fafb;
+}
+
+.form-group input.input-invalid {
+  border-color: #dc2626;
+  background-color: #fff7f7;
+}
+
+.form-group input.input-invalid:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.2);
 }
 
 .form-row {

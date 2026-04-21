@@ -15,8 +15,7 @@
         Please sign in to access AI-powered pneumonia detection and manage your patients.
       </p>
 
-      <form class="auth-form" novalidate (submit)="onSubmit($event)">
-        <!-- Error Message -->
+      <form #loginForm="ngForm" class="auth-form" novalidate (ngSubmit)="onSubmit(loginForm)">
         <div *ngIf="errorMessage" class="error-message">
           {{ errorMessage }}
         </div>
@@ -29,9 +28,17 @@
             placeholder="you@example.com"
             autocomplete="email"
             required
+            email
             [(ngModel)]="email"
+            (ngModelChange)="clearErrorMessage()"
             name="email"
+            #emailModel="ngModel"
+            [class.input-invalid]="shouldShowFieldError(loginForm, emailModel)"
+            [attr.aria-invalid]="shouldShowFieldError(loginForm, emailModel)"
           />
+          <div *ngIf="shouldShowFieldError(loginForm, emailModel)" class="field-error">
+            {{ getEmailError(emailModel) }}
+          </div>
         </div>
 
         <div class="form-group">
@@ -39,12 +46,19 @@
           <input
             id="login-password"
             type="password"
-            placeholder="••••••••"
+            placeholder="........"
             autocomplete="current-password"
             required
             [(ngModel)]="password"
+            (ngModelChange)="clearErrorMessage()"
             name="password"
+            #passwordModel="ngModel"
+            [class.input-invalid]="shouldShowFieldError(loginForm, passwordModel)"
+            [attr.aria-invalid]="shouldShowFieldError(loginForm, passwordModel)"
           />
+          <div *ngIf="shouldShowFieldError(loginForm, passwordModel)" class="field-error">
+            {{ getPasswordError(passwordModel) }}
+          </div>
         </div>
 
         <div class="form-row">
@@ -68,4 +82,3 @@
     </section>
   </main>
 </div>
-
