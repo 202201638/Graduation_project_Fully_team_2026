@@ -1,5 +1,35 @@
 # Medical AI System
 
+Unified graduation project repository for the chest X-ray pneumonia detection system.
+
+The repository is organized into four main areas:
+
+- `Backend/`: FastAPI backend and model inference API.
+- `Frontend/`: Angular frontend for upload, processing, and result pages.
+- `ai/`: training, evaluation, optimization, and explainability pipeline.
+- `documentation/`: project reports, presentation files, and supporting documentation.
+
+The deployed web flow uses the YOLO weights stored in `Backend/model_assets/yolo_best.pt`.
+
+## Required model files
+
+Place these files in `Backend/model_assets`:
+
+- Required: `yolo_best.pt`
+- Recommended: `manifest.json`
+- Recommended: `phase3_baseline_results.json`
+- Recommended: `web_result.json`
+- Optional: `phase8_demo_result.json`
+- Optional: `demo_output.png`
+
+These files are not used by the web integration and are not required:
+
+- `phase1_dataset_summary.json`
+- `phase1_conversion_summary.json`
+- `phase2_yolo_dataset_summary.json`
+- full `png_images/`
+- full `yolo_dataset/`
+- full `runs/` directories
 
 ## What the app does
 
@@ -13,7 +43,7 @@
 ### 1. Open a terminal in the repository root
 
 ```powershell
-cd "D:\Collage\graduation project\webapp\Graduation_project_Fully_team_2026"
+cd "D:\Collage\graduation project"
 ```
 
 ### 2. Create or use a Python virtual environment
@@ -80,6 +110,27 @@ npm start
 Frontend URL:
 
 - App: [http://localhost:4200](http://localhost:4200)
+
+## AI pipeline setup
+
+The AI training and evaluation workflow lives under `ai/`.
+
+```powershell
+cd ai
+python -m venv venv
+.\venv\Scripts\activate
+python -m pip install -r requirements.txt
+python main.py
+```
+
+Notes:
+
+- The AI folder contains the end-to-end research pipeline, including dataset exploration, preprocessing, detection, classification, optimization, and Grad-CAM explainability stages.
+- Large datasets, checkpoints, and generated training outputs are intentionally excluded from git through `ai/.gitignore`.
+
+## Documentation
+
+Project reports, milestone deliverables, and presentation assets are stored in `documentation/`.
 
 ## End-to-end web flow
 

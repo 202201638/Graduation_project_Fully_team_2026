@@ -1,0 +1,24 @@
+{
+  "output_dir": "/kaggle/working/Code/yolo_dataset",
+  "total_patients_with_png": 12000,
+  "splits": {
+    "train": {
+      "total_ids": 7200,
+      "saved_images": 7200,
+      "positive_labels": 1619,
+      "negative_labels": 5581
+    },
+    "val": {
+      "total_ids": 2400,
+      "saved_images": 2400,
+      "positive_labels": 568,
+      "negative_labels": 1832
+    },
+    "test": {
+      "total_ids": 2400,
+      "saved_images": 2400,
+      "positive_labels": 545,
+      "negative_labels": 1855
+    }
+  }
+}

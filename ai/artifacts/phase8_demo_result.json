@@ -1,0 +1,7 @@
+{
+  "detected": false,
+  "confidence": 0.0,
+  "output_image": "/kaggle/working/Code/artifacts/demo_output.png",
+  "model_path": "/kaggle/working/Code/runs/phase3_yolo_baseline/weights/best.pt",
+  "input_image": "/kaggle/working/Code/yolo_dataset/val/images/00d7c36e-3cdf-4df6-ac03-6c30cdc8e85b.png"
+}

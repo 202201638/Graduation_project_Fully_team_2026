@@ -1,0 +1,24 @@
+{
+  "samples": [
+    {
+      "file_name": "01_pneumonia.png",
+      "label": "pneumonia",
+      "source_path": "D:\\Collage\\graduation project\\Code\\yolo_dataset\\train\\images\\112bbb1f-9e2a-4421-b276-39868ef35904.png"
+    },
+    {
+      "file_name": "02_no_pneumonia.png",
+      "label": "no_pneumonia",
+      "source_path": "D:\\Collage\\graduation project\\Code\\yolo_dataset\\train\\images\\26d6b8f2-0b42-448d-a2c7-5ab0688f2418.png"
+    },
+    {
+      "file_name": "03_pneumonia.png",
+      "label": "pneumonia",
+      "source_path": "D:\\Collage\\graduation project\\Code\\yolo_dataset\\val\\images\\33f0fb8e-35b4-4680-8f22-990a36899bfa.png"
+    },
+    {
+      "file_name": "04_no_pneumonia.png",
+      "label": "no_pneumonia",
+      "source_path": "D:\\Collage\\graduation project\\Code\\yolo_dataset\\val\\images\\4754adf8-4003-4bc5-840a-511b885b0a62.png"
+    }
+  ]
+}

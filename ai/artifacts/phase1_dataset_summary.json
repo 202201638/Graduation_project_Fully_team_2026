@@ -1,0 +1,10 @@
+{
+  "input_dir": "/kaggle/input/competitions/rsna-pneumonia-detection-challenge/stage_2_train_images",
+  "label_path": "/kaggle/input/competitions/rsna-pneumonia-detection-challenge/stage_2_train_labels.csv",
+  "total_images": 26684,
+  "first_file": "c3b05294-29be-46e4-8a51-96fd211e4ca5.dcm",
+  "target_distribution": {
+    "0": 20672,
+    "1": 9555
+  }
+}

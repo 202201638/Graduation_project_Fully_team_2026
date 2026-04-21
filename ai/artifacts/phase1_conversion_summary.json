@@ -1,0 +1,7 @@
+{
+  "input_dir": "/kaggle/input/competitions/rsna-pneumonia-detection-challenge/stage_2_train_images",
+  "output_dir": "/kaggle/working/Code/png_images",
+  "total_candidates": 12000,
+  "converted": 12000,
+  "skipped_corrupt": 0
+}

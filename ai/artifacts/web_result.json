@@ -1,0 +1,25 @@
+{
+  "job_id": "rsna_20260405_040006",
+  "status": "COMPLETED",
+  "created_at": "2026-04-05T04:00:06.746373+00:00",
+  "finished_at": "2026-04-05T04:00:06.746373+00:00",
+  "project_root": "/kaggle/working/Code",
+  "artifacts": {
+    "phase3_baseline_results": "artifacts/phase3_baseline_results.json",
+    "phase4_best_hyperparameters": null,
+    "phase5_retrain_results": null,
+    "phase6_gradcam_results": null,
+    "phase7_final_evaluation": null,
+    "phase8_demo_result": "artifacts/phase8_demo_result.json",
+    "demo_output_image": "artifacts/demo_output.png",
+    "gradcam_images": [],
+    "best_yolo_weights": "runs/phase3_yolo_baseline/weights/best.pt"
+  },
+  "summary": {
+    "best_detection_model": null,
+    "best_classification_model": null,
+    "demo_detected": false,
+    "demo_confidence": 0.0
+  },
+  "error": null
+}
