@@ -1,13 +1,13 @@
 {
   "created_at_utc": "2026-04-05T04:00:06.746373+00:00",
-  "default_model_key": "yolo",
-  "model_type": "ultralytics_yolo_detection",
-  "weights_file": "yolo_best.pt",
+  "default_model_key": "fasterrcnn",
+  "model_type": "torchvision_fasterrcnn_detection",
+  "weights_file": "fasterrcnn.pt",
   "task": "pneumonia_detection",
   "class_names": [
     "pneumonia"
   ],
-  "default_imgsz": 640,
+  "default_imgsz": null,
   "default_conf": 0.1,
   "confirmed_conf": 0.25,
   "model_configs": {

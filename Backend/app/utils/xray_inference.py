@@ -19,6 +19,7 @@ from PIL import Image, UnidentifiedImageError
 from torchvision import transforms
 from torchvision.models import densenet121, efficientnet_b0, resnet50
 from torchvision.models.detection import fasterrcnn_resnet50_fpn, retinanet_resnet50_fpn
+from torchvision.ops import nms
 from torchvision.transforms import functional as transforms_functional
 
 from app.utils.security import generate_analysis_id
@@ -45,7 +46,9 @@ DIAGNOSIS_STATUS_SUSPECTED = "suspected_pneumonia"
 DIAGNOSIS_STATUS_CLEAR = "no_pneumonia_detected"
 MODEL_FAMILY_DETECTION = "detection"
 MODEL_FAMILY_CLASSIFICATION = "classification"
-DEFAULT_MODEL_KEY = "yolo"
+DEFAULT_MODEL_KEY = "fasterrcnn"
+DETECTION_NMS_IOU_THRESHOLD = 0.30
+MAX_RENDERED_DETECTIONS = 3
 
 
 @dataclass(frozen=True)
@@ -588,6 +591,97 @@ class XRayInferenceService:
             return (9, 179, 245)
         return (34, 197, 94)
 
+    def _postprocess_detections(
+        self,
+        detections: list[dict[str, Any]],
+        nms_iou_threshold: float = DETECTION_NMS_IOU_THRESHOLD,
+    ) -> list[dict[str, Any]]:
+        if not detections:
+            return []
+
+        boxes = torch.tensor(
+            [
+                [
+                    detection["bbox"]["x1"],
+                    detection["bbox"]["y1"],
+                    detection["bbox"]["x2"],
+                    detection["bbox"]["y2"],
+                ]
+                for detection in detections
+            ],
+            dtype=torch.float32,
+        )
+        scores = torch.tensor(
+            [detection["confidence"] for detection in detections],
+            dtype=torch.float32,
+        )
+
+        keep_indices = nms(boxes, scores, nms_iou_threshold).tolist()
+        filtered_detections = [detections[index] for index in keep_indices]
+        filtered_detections.sort(key=lambda item: item["confidence"], reverse=True)
+        return filtered_detections
+
+    def _select_detections_for_render(
+        self,
+        detections: list[dict[str, Any]],
+        confirmed_confidence_threshold: float,
+    ) -> list[dict[str, Any]]:
+        if not detections:
+            return []
+
+        confirmed_detections = [
+            detection
+            for detection in detections
+            if detection["confidence"] >= confirmed_confidence_threshold
+        ]
+        if confirmed_detections:
+            return confirmed_detections[:MAX_RENDERED_DETECTIONS]
+
+        return detections[:1]
+
+    def _render_detection_overlay(
+        self,
+        image: np.ndarray,
+        detections: list[dict[str, Any]],
+        diagnosis_status: str,
+        model_display_name: str,
+        confidence_score: float,
+    ) -> np.ndarray:
+        rendered_image = image.copy()
+
+        for detection in detections:
+            bbox = detection["bbox"]
+            box_status = (
+                DIAGNOSIS_STATUS_CONFIRMED
+                if diagnosis_status == DIAGNOSIS_STATUS_CONFIRMED
+                else DIAGNOSIS_STATUS_SUSPECTED
+            )
+            color = self._status_color(box_status)
+            cv2.rectangle(
+                rendered_image,
+                (int(bbox["x1"]), int(bbox["y1"])),
+                (int(bbox["x2"]), int(bbox["y2"])),
+                color,
+                2,
+            )
+            cv2.putText(
+                rendered_image,
+                f"{detection['label']} {detection['confidence'] * 100:.1f}%",
+                (int(bbox["x1"]), max(24, int(bbox["y1"]) - 8)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                color,
+                1,
+                cv2.LINE_AA,
+            )
+
+        return self._draw_banner(
+            rendered_image,
+            model_display_name,
+            f"{diagnosis_status.replace('_', ' ').title()} | Top score {confidence_score * 100:.1f}%",
+            self._status_color(diagnosis_status),
+        )
+
     def _score_to_status(
         self,
         score: float,
@@ -719,18 +813,36 @@ class XRayInferenceService:
                     }
                 )
 
-        detections.sort(key=lambda item: item["confidence"], reverse=True)
+        detections = self._postprocess_detections(detections)
         confirmed_detections = [
             detection
             for detection in detections
             if detection["confidence"] >= config["confirmed_conf"]
         ]
-
-        rendered_image = prediction.plot()
+        diagnosis_status = (
+            DIAGNOSIS_STATUS_CONFIRMED
+            if confirmed_detections
+            else DIAGNOSIS_STATUS_SUSPECTED
+            if detections
+            else DIAGNOSIS_STATUS_CLEAR
+        )
+        confidence_score = detections[0]["confidence"] if detections else 0.0
+        render_detections = self._select_detections_for_render(
+            detections,
+            config["confirmed_conf"],
+        )
+        rendered_source = self._load_image_bgr(saved_upload)
+        rendered_image = self._render_detection_overlay(
+            rendered_source,
+            render_detections,
+            diagnosis_status,
+            config["display_name"],
+            confidence_score,
+        )
         rendered_filename = self._save_rendered_image(rendered_image, saved_upload, "yolo")
 
         return {
-            "confidence_score": detections[0]["confidence"] if detections else 0.0,
+            "confidence_score": confidence_score,
             "processing_time": processing_time,
             "detections": detections,
             "confirmed_detections_count": len(confirmed_detections),
@@ -793,7 +905,7 @@ class XRayInferenceService:
                     }
                 )
 
-        detections.sort(key=lambda item: item["confidence"], reverse=True)
+        detections = self._postprocess_detections(detections)
         confirmed_detections = [
             detection
             for detection in detections
@@ -809,37 +921,17 @@ class XRayInferenceService:
         )
         confidence_score = detections[0]["confidence"] if detections else 0.0
 
-        rendered_image = self._load_image_bgr(saved_upload)
-        for detection in detections:
-            bbox = detection["bbox"]
-            color = self._status_color(
-                DIAGNOSIS_STATUS_CONFIRMED
-                if detection["confidence"] >= config["confirmed_conf"]
-                else DIAGNOSIS_STATUS_SUSPECTED
-            )
-            cv2.rectangle(
-                rendered_image,
-                (int(bbox["x1"]), int(bbox["y1"])),
-                (int(bbox["x2"]), int(bbox["y2"])),
-                color,
-                2,
-            )
-            cv2.putText(
-                rendered_image,
-                f"{detection['label']} {detection['confidence'] * 100:.1f}%",
-                (int(bbox["x1"]), max(24, int(bbox["y1"]) - 8)),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                color,
-                1,
-                cv2.LINE_AA,
-            )
-
-        rendered_image = self._draw_banner(
-            rendered_image,
+        render_detections = self._select_detections_for_render(
+            detections,
+            config["confirmed_conf"],
+        )
+        rendered_source = self._load_image_bgr(saved_upload)
+        rendered_image = self._render_detection_overlay(
+            rendered_source,
+            render_detections,
+            diagnosis_status,
             config["display_name"],
-            f"{diagnosis_status.replace('_', ' ').title()} | Top score {confidence_score * 100:.1f}%",
-            self._status_color(diagnosis_status),
+            confidence_score,
         )
         rendered_filename = self._save_rendered_image(rendered_image, saved_upload, model_name)
 
