@@ -7,7 +7,7 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -955,7 +955,7 @@ class XRayInferenceService:
         pneumonia_detected = diagnosis_status == DIAGNOSIS_STATUS_CONFIRMED
         suspected_pneumonia = diagnosis_status == DIAGNOSIS_STATUS_SUSPECTED
         processing_time = float(prediction["processing_time"])
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(UTC)
 
         analysis_details = {
             "model_name": resolved_model_name,

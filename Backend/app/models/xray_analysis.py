@@ -2,8 +2,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import core_schema
 from typing import Optional, Dict, Any, List, Literal
-from datetime import datetime
+from datetime import UTC, datetime
 from bson import ObjectId
+
+
+def utc_now() -> datetime:
+    return datetime.now(UTC)
 
 class PyObjectId(ObjectId):
     @classmethod
@@ -61,6 +65,12 @@ class AnalysisResult(BaseModel):
     rendered_image_url: Optional[str] = None
 
 class XRayAnalysisInDB(XRayAnalysisBase):
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        protected_namespaces=(),
+    )
+
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     analysis_id: str
     patient_id: str
@@ -68,13 +78,8 @@ class XRayAnalysisInDB(XRayAnalysisBase):
     status: str = Field(default="pending", pattern="^(pending|processing|completed|failed)$")
     error_message: Optional[str] = None
     processing_time: Optional[float] = None  # in seconds
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
-
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 class XRayAnalysisResponse(XRayAnalysisBase):
     model_config = ConfigDict(

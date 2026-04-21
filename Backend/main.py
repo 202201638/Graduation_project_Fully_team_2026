@@ -1,3 +1,6 @@
+from contextlib import asynccontextmanager
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
@@ -11,14 +14,25 @@ from app.database.mongodb import (
 )
 from app.utils.xray_inference import xray_inference_service
 import uvicorn
-import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    await connect_to_mongodb()
+    await run_in_threadpool(xray_inference_service.warmup)
+    try:
+        yield
+    finally:
+        await close_mongodb_connection()
+
 
 app = FastAPI(
     title="Medical System API",
     description="AI-Powered X-Ray Chest Diagnosis Backend",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Configure CORS
@@ -37,16 +51,6 @@ app.mount("/uploads", StaticFiles(directory=os.path.join(BASE_DIR, "uploads")), 
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(patients.router, prefix="/api/patients", tags=["patients"])
 app.include_router(xray_analysis.router, prefix="/api/xray", tags=["xray-analysis"])
-
-# MongoDB connection events
-@app.on_event("startup")
-async def startup_event():
-    await connect_to_mongodb()
-    await run_in_threadpool(xray_inference_service.warmup)
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    await close_mongodb_connection()
 
 @app.get("/")
 async def root():

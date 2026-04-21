@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import List, Optional
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -219,14 +219,14 @@ async def analyze_xray_for_web(
     file: UploadFile = File(...),
     patient_id: Optional[str] = Form(None),
     scan_type: Optional[str] = Form(None),
-    model_name: Optional[str] = Form(None),
+    selected_model_name: Optional[str] = Form(None, alias="model_name"),
 ):
     """Upload and analyze an X-ray image without authentication"""
     saved_upload: Optional[SavedUpload] = None
 
     try:
         saved_upload = await _save_upload(file)
-        return await _run_inference(saved_upload, patient_id, scan_type, model_name)
+        return await _run_inference(saved_upload, patient_id, scan_type, selected_model_name)
     except HTTPException:
         _cleanup_saved_upload(saved_upload)
         raise
@@ -236,7 +236,7 @@ async def analyze_xray_for_web(
 async def upload_xray(
     file: UploadFile = File(...),
     patient_id: Optional[str] = Form(None),
-    model_name: Optional[str] = Form(None),
+    selected_model_name: Optional[str] = Form(None, alias="model_name"),
     current_user: dict = Depends(get_current_user),
 ):
     """Upload and analyze X-ray image for an authenticated patient"""
@@ -265,15 +265,15 @@ async def upload_xray(
             "image_url": saved_upload.image_url,
             "image_filename": saved_upload.original_filename,
             "status": "processing",
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
+            "created_at": datetime.now(UTC),
+            "updated_at": datetime.now(UTC),
         }
 
         analysis_result = await _run_inference(
             saved_upload,
             patient["patient_id"],
             None,
-            model_name,
+            selected_model_name,
         )
         analysis_in_db["analysis_id"] = analysis_result["analysis_id"]
         analysis_in_db["model_name"] = analysis_result.get("model_name")
@@ -324,7 +324,7 @@ async def upload_xray(
                     "$set": {
                         "status": "failed",
                         "error_message": exc.detail,
-                        "updated_at": datetime.utcnow(),
+                        "updated_at": datetime.now(UTC),
                     }
                 },
             )
@@ -339,7 +339,7 @@ async def upload_xray(
                     "$set": {
                         "status": "failed",
                         "error_message": str(exc),
-                        "updated_at": datetime.utcnow(),
+                        "updated_at": datetime.now(UTC),
                     }
                 },
             )

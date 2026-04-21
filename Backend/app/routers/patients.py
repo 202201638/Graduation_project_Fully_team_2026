@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List, Optional
-from datetime import datetime
+from datetime import UTC, datetime
 from pydantic import BaseModel
 
 from app.models.patient import PatientCreate, PatientResponse, PatientUpdate, PatientInDB
@@ -146,7 +146,7 @@ async def update_patient(
     
     # Update patient data
     update_data = patient_update.dict(exclude_unset=True)
-    update_data["updated_at"] = datetime.utcnow()
+    update_data["updated_at"] = datetime.now(UTC)
     
     await db.patients.update_one(
         {"user_id": current_user["user_id"]},
@@ -207,7 +207,7 @@ async def add_medical_history(
         {"user_id": current_user["user_id"]},
         {
             "$push": {"medical_history": request.medical_history},
-            "$set": {"updated_at": datetime.utcnow()}
+            "$set": {"updated_at": datetime.now(UTC)}
         }
     )
     
@@ -238,7 +238,7 @@ async def add_allergy(
         {"user_id": current_user["user_id"]},
         {
             "$push": {"allergies": request.allergy},
-            "$set": {"updated_at": datetime.utcnow()}
+            "$set": {"updated_at": datetime.now(UTC)}
         }
     )
     
@@ -269,7 +269,7 @@ async def add_medication(
         {"user_id": current_user["user_id"]},
         {
             "$push": {"medications": request.medication},
-            "$set": {"updated_at": datetime.utcnow()}
+            "$set": {"updated_at": datetime.now(UTC)}
         }
     )
     

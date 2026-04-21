@@ -1,9 +1,13 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import core_schema
 from typing import Optional
-from datetime import datetime
+from datetime import UTC, datetime
 from bson import ObjectId
+
+
+def utc_now() -> datetime:
+    return datetime.now(UTC)
 
 class PyObjectId(ObjectId):
     @classmethod
@@ -43,15 +47,17 @@ class UserInDB(UserBase):
     user_id: str
     hashed_password: str
     is_active: bool = True
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+    )
 
 class UserResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     id: str
     user_id: str
     email: EmailStr
@@ -59,6 +65,3 @@ class UserResponse(BaseModel):
     role: str
     is_active: bool
     created_at: datetime
-
-    class Config:
-        populate_by_name = True

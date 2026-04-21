@@ -34,13 +34,13 @@ async def signup(user_data: UserCreate):
     user_id = generate_user_id()
     
     user_in_db = UserInDB(
-        **user_data.dict(exclude={"password"}),
+        **user_data.model_dump(exclude={"password"}),
         user_id=user_id,
         hashed_password=hashed_password
     )
     
     # Insert into database
-    user_dict = user_in_db.dict(by_alias=True)
+    user_dict = user_in_db.model_dump(by_alias=True)
     result = await db.users.insert_one(user_dict)
     
     # Return user response

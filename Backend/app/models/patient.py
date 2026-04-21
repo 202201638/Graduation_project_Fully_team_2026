@@ -1,9 +1,13 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import core_schema
 from typing import Optional, List
-from datetime import datetime
+from datetime import UTC, datetime
 from bson import ObjectId
+
+
+def utc_now() -> datetime:
+    return datetime.now(UTC)
 
 class PyObjectId(ObjectId):
     @classmethod
@@ -54,15 +58,17 @@ class PatientInDB(PatientBase):
     medical_history: List[str] = Field(default_factory=list)
     allergies: List[str] = Field(default_factory=list)
     medications: List[str] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+    )
 
 class PatientResponse(PatientBase):
+    model_config = ConfigDict(populate_by_name=True)
+
     id: str
     patient_id: str
     user_id: str
@@ -71,6 +77,3 @@ class PatientResponse(PatientBase):
     medications: List[str]
     created_at: datetime
     updated_at: datetime
-
-    class Config:
-        populate_by_name = True
