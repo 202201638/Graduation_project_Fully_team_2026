@@ -678,6 +678,13 @@
   color: #6b7280;
 }
 
+.empty-state {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .activity-list {
   display: flex;
   flex-direction: column;

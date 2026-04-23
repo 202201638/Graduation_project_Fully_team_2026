@@ -16,7 +16,7 @@ from app.models.xray_analysis import (
     XRayAnalysisSummary,
 )
 from app.utils.security import verify_token
-from app.utils.xray_inference import SavedUpload, xray_inference_service
+from app.utils.xray_inference import SavedUpload, UPLOADS_DIR, xray_inference_service
 
 router = APIRouter()
 security = HTTPBearer()
@@ -67,7 +67,10 @@ def _cleanup_image_url(image_url: Optional[str]) -> None:
         return
 
     relative_path = image_url.lstrip("/")
-    target_path = BACKEND_DIR / relative_path
+    if relative_path.startswith("uploads/"):
+        target_path = UPLOADS_DIR / relative_path.removeprefix("uploads/")
+    else:
+        target_path = BACKEND_DIR / relative_path
     if target_path.exists():
         target_path.unlink(missing_ok=True)
 
@@ -122,6 +125,52 @@ def _resolve_analysis_model_details(analysis: dict) -> tuple[Optional[str], Opti
             model_family = model_family or analysis_details.get("model_family")
 
     return model_name, model_display_name, model_family
+
+
+async def _get_current_user_patient_ids(db, user_id: str) -> list[str]:
+    patients = await db.patients.find({"user_id": user_id}).to_list(length=None)
+    return [patient["patient_id"] for patient in patients]
+
+
+async def _get_owned_patient_or_404(db, patient_id: Optional[str], user_id: str) -> dict:
+    if not patient_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="patient_id is required. Create or select a patient record before uploading an X-ray.",
+        )
+
+    patient = await db.patients.find_one({"patient_id": patient_id, "user_id": user_id})
+    if not patient:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Patient record not found. Create or select a valid patient record first.",
+        )
+
+    return patient
+
+
+def _analysis_response(analysis: dict) -> XRayAnalysisResponse:
+    result_data = _normalize_result_payload(analysis.get("result"))
+    result = AnalysisResult(**result_data) if result_data else None
+    model_name, model_display_name, model_family = _resolve_analysis_model_details(analysis)
+
+    return XRayAnalysisResponse(
+        id=str(analysis["_id"]),
+        analysis_id=analysis["analysis_id"],
+        patient_id=analysis["patient_id"],
+        scan_type=analysis.get("scan_type"),
+        model_name=model_name,
+        model_display_name=model_display_name,
+        model_family=model_family,
+        image_url=analysis["image_url"],
+        image_filename=analysis["image_filename"],
+        result=result,
+        status=analysis["status"],
+        error_message=analysis.get("error_message"),
+        processing_time=analysis.get("processing_time"),
+        created_at=analysis["created_at"],
+        updated_at=analysis["updated_at"],
+    )
 
 
 async def _save_upload(file: UploadFile) -> SavedUpload:
@@ -236,6 +285,7 @@ async def analyze_xray_for_web(
 async def upload_xray(
     file: UploadFile = File(...),
     patient_id: Optional[str] = Form(None),
+    scan_type: Optional[str] = Form(None),
     selected_model_name: Optional[str] = Form(None, alias="model_name"),
     current_user: dict = Depends(get_current_user),
 ):
@@ -243,25 +293,14 @@ async def upload_xray(
     db = require_database()
     saved_upload: Optional[SavedUpload] = None
     inserted_analysis_id = None
-
-    if patient_id:
-        patient = await db.patients.find_one(
-            {"patient_id": patient_id, "user_id": current_user["user_id"]}
-        )
-    else:
-        patient = await db.patients.find_one({"user_id": current_user["user_id"]})
-
-    if not patient:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient record not found. Please create a patient record first or provide a valid patient_id.",
-        )
+    patient = await _get_owned_patient_or_404(db, patient_id, current_user["user_id"])
 
     try:
         saved_upload = await _save_upload(file)
         analysis_in_db = {
             "analysis_id": None,
             "patient_id": patient["patient_id"],
+            "scan_type": scan_type or None,
             "image_url": saved_upload.image_url,
             "image_filename": saved_upload.original_filename,
             "status": "processing",
@@ -272,7 +311,7 @@ async def upload_xray(
         analysis_result = await _run_inference(
             saved_upload,
             patient["patient_id"],
-            None,
+            scan_type,
             selected_model_name,
         )
         analysis_in_db["analysis_id"] = analysis_result["analysis_id"]
@@ -299,22 +338,7 @@ async def upload_xray(
         )
 
         updated_analysis = await db.xray_analyses.find_one({"_id": inserted_analysis_id})
-
-        return XRayAnalysisResponse(
-            id=str(updated_analysis["_id"]),
-            analysis_id=updated_analysis["analysis_id"],
-            patient_id=updated_analysis["patient_id"],
-            model_name=updated_analysis.get("model_name"),
-            model_display_name=updated_analysis.get("model_display_name"),
-            model_family=updated_analysis.get("model_family"),
-            image_url=updated_analysis["image_url"],
-            image_filename=updated_analysis["image_filename"],
-            result=AnalysisResult(**_normalize_result_payload(updated_analysis["result"])),
-            status=updated_analysis["status"],
-            processing_time=updated_analysis["processing_time"],
-            created_at=updated_analysis["created_at"],
-            updated_at=updated_analysis["updated_at"],
-        )
+        return _analysis_response(updated_analysis)
 
     except HTTPException as exc:
         if inserted_analysis_id is not None:
@@ -357,15 +381,12 @@ async def get_analyses(current_user: dict = Depends(get_current_user)):
     """Get all X-ray analyses for current user"""
     db = require_database()
 
-    patient = await db.patients.find_one({"user_id": current_user["user_id"]})
-    if not patient:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient record not found",
-        )
+    patient_ids = await _get_current_user_patient_ids(db, current_user["user_id"])
+    if not patient_ids:
+        return []
 
     analyses = (
-        await db.xray_analyses.find({"patient_id": patient["patient_id"]})
+        await db.xray_analyses.find({"patient_id": {"$in": patient_ids}})
         .sort("created_at", -1)
         .to_list(length=None)
     )
@@ -378,6 +399,10 @@ async def get_analyses(current_user: dict = Depends(get_current_user)):
             XRayAnalysisSummary(
                 analysis_id=analysis["analysis_id"],
                 patient_id=analysis["patient_id"],
+                scan_type=analysis.get("scan_type"),
+                image_url=analysis.get("image_url"),
+                image_filename=analysis.get("image_filename"),
+                rendered_image_url=result.get("rendered_image_url"),
                 status=analysis["status"],
                 model_name=model_name,
                 model_display_name=model_display_name,
@@ -401,17 +426,14 @@ async def get_analysis(
     """Get specific X-ray analysis"""
     db = require_database()
 
-    patient = await db.patients.find_one({"user_id": current_user["user_id"]})
-    if not patient:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient record not found",
-        )
+    patient_ids = await _get_current_user_patient_ids(db, current_user["user_id"])
+    if not patient_ids:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found")
 
     analysis = await db.xray_analyses.find_one(
         {
             "analysis_id": analysis_id,
-            "patient_id": patient["patient_id"],
+            "patient_id": {"$in": patient_ids},
         }
     )
 
@@ -421,26 +443,7 @@ async def get_analysis(
             detail="Analysis not found",
         )
 
-    result_data = _normalize_result_payload(analysis.get("result"))
-    result = AnalysisResult(**result_data) if result_data else None
-    model_name, model_display_name, model_family = _resolve_analysis_model_details(analysis)
-
-    return XRayAnalysisResponse(
-        id=str(analysis["_id"]),
-        analysis_id=analysis["analysis_id"],
-        patient_id=analysis["patient_id"],
-        model_name=model_name,
-        model_display_name=model_display_name,
-        model_family=model_family,
-        image_url=analysis["image_url"],
-        image_filename=analysis["image_filename"],
-        result=result,
-        status=analysis["status"],
-        error_message=analysis.get("error_message"),
-        processing_time=analysis.get("processing_time"),
-        created_at=analysis["created_at"],
-        updated_at=analysis["updated_at"],
-    )
+    return _analysis_response(analysis)
 
 
 @router.delete("/{analysis_id}")
@@ -451,17 +454,14 @@ async def delete_analysis(
     """Delete X-ray analysis"""
     db = require_database()
 
-    patient = await db.patients.find_one({"user_id": current_user["user_id"]})
-    if not patient:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient record not found",
-        )
+    patient_ids = await _get_current_user_patient_ids(db, current_user["user_id"])
+    if not patient_ids:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found")
 
     analysis = await db.xray_analyses.find_one(
         {
             "analysis_id": analysis_id,
-            "patient_id": patient["patient_id"],
+            "patient_id": {"$in": patient_ids},
         }
     )
 

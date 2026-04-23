@@ -1,7 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
+import { AnalysisResult, AnalysisStateService } from '../analysis-state.service';
 import { ProfileService } from './profile.service';
 import { NavbarComponent } from '../shared/navbar/navbar.component';
 
@@ -23,11 +25,14 @@ interface ActivityItem {
   templateUrl: './profile.html',
   styleUrl: './profile.css',
 })
-export class Profile {
+export class Profile implements OnInit, OnDestroy {
   name = '';
   role = '';
   email = '';
   avatarInitials = '';
+  activity: ActivityItem[] = [];
+  stats: ProfileStat[] = this.buildStats([]);
+  private readonly subscriptions = new Subscription();
 
   // Editing properties
   isEditing = false;
@@ -37,68 +42,44 @@ export class Profile {
   editInitials = '';
 
   clinic = {
-    name: 'Mediscan Diagnostics Center',
-    address: '123 Health Ave, Medical City, MC 10001',
-    phone: '(555) 123-4567',
+    name: '',
+    address: '',
+    phone: '',
   };
 
-  stats: ProfileStat[] = [
-    {
-      label: 'Cases Analyzed',
-      value: '4,567',
-      description: 'Total X-ray cases you have reviewed.',
-    },
-    {
-      label: 'Positive Cases Identified',
-      value: '1,234',
-      description: 'Cases flagged with potential issues.',
-    },
-    {
-      label: 'Accuracy Rate',
-      value: '98.5%',
-      description: 'Average diagnostic accuracy over the last 30 days.',
-    },
-  ];
-
-  activity: ActivityItem[] = [
-    {
-      title: 'Analyzed X-ray for Patient ID 7830',
-      time: '2 hours ago',
-    },
-    {
-      title: 'Updated personal contact details',
-      time: 'Yesterday',
-    },
-    {
-      title: 'Reviewed patient history for ID 1234',
-      time: '2 days ago',
-    },
-    {
-      title: 'Completed AI model training session',
-      time: '3 days ago',
-    },
-    {
-      title: 'Added new patient record for ID 5678',
-      time: '1 week ago',
-    },
-    {
-      title: 'Consulted on complex case with Dr. Emily White',
-      time: '1 week ago',
-    },
-  ];
-
-  constructor(private profileService: ProfileService) {
+  constructor(
+    private profileService: ProfileService,
+    private analysisState: AnalysisStateService,
+  ) {
     const profile = this.profileService.profile;
     this.name = profile.name;
     this.role = profile.role;
     this.email = profile.email;
     this.avatarInitials = profile.avatarInitials;
-    
+
     // Initialize edit fields with current values
     this.editName = this.name;
     this.editRole = this.role;
     this.editEmail = this.email;
     this.editInitials = this.avatarInitials;
+  }
+
+  ngOnInit(): void {
+    this.subscriptions.add(
+      this.analysisState.history$.subscribe((history) => {
+        this.stats = this.buildStats(history);
+        this.activity = history.slice(0, 6).map((item) => ({
+          title: `${item.diagnosis} for patient ${item.patientId || 'Unknown'}`,
+          time: this.formatTime(item.date),
+        }));
+      }),
+    );
+
+    this.analysisState.loadAuthenticatedHistory();
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
   }
 
   toggleEditMode() {
@@ -144,15 +125,51 @@ export class Profile {
       name: this.name,
       role: this.role,
       email: this.email,
-      avatarInitials: this.avatarInitials
+      avatarInitials: this.avatarInitials,
     });
 
     this.isEditing = false;
-    console.log('Profile saved:', {
-      name: this.name,
-      role: this.role,
-      email: this.email,
-      avatarInitials: this.avatarInitials
+  }
+
+  private buildStats(history: AnalysisResult[]): ProfileStat[] {
+    const positiveCount = history.filter(
+      (item) => item.statusVariant === 'danger' || item.statusVariant === 'warning',
+    ).length;
+    const averageConfidence = history.length
+      ? Math.round(
+          history.reduce((total, item) => total + item.confidence, 0) / history.length,
+        )
+      : 0;
+
+    return [
+      {
+        label: 'Saved Analyses',
+        value: String(history.length),
+        description: 'Authenticated X-ray analyses saved to your account.',
+      },
+      {
+        label: 'Flagged Cases',
+        value: String(positiveCount),
+        description: 'Saved cases marked as suspected or detected pneumonia.',
+      },
+      {
+        label: 'Average Confidence',
+        value: history.length ? `${averageConfidence}%` : 'N/A',
+        description: 'Average confidence across your saved analyses.',
+      },
+    ];
+  }
+
+  private formatTime(dateValue: string): string {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) {
+      return dateValue;
+    }
+
+    return date.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
     });
   }
 }

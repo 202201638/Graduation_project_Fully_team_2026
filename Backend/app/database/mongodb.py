@@ -1,5 +1,6 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import ConnectionFailure
+from pymongo import ASCENDING
 from fastapi import HTTPException, status
 import os
 from dotenv import load_dotenv
@@ -71,11 +72,15 @@ async def create_indexes():
         # Patients collection indexes
         await database.patients.create_index("patient_id", unique=True)
         await database.patients.create_index("user_id")
+        await database.patients.create_index([("user_id", ASCENDING), ("created_at", ASCENDING)])
+        await database.patients.create_index([("user_id", ASCENDING), ("patient_id", ASCENDING)])
 
         # X-ray analysis collection indexes
         await database.xray_analyses.create_index("analysis_id", unique=True)
         await database.xray_analyses.create_index("patient_id")
         await database.xray_analyses.create_index("created_at")
+        await database.xray_analyses.create_index([("patient_id", ASCENDING), ("created_at", ASCENDING)])
+        await database.xray_analyses.create_index([("analysis_id", ASCENDING), ("patient_id", ASCENDING)])
 
         print("Database indexes created successfully")
     except Exception as e:

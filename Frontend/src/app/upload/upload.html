@@ -63,14 +63,18 @@
 
             <div class="upload-form-row">
               <div class="form-group">
-                <label for="patient-id">Patient ID</label>
-                <input
+                <label for="patient-id">Patient</label>
+                <select
                   id="patient-id"
-                  type="text"
-                  placeholder="e.g., MS-001-A"
                   name="patientId"
                   [(ngModel)]="patientId"
-                />
+                >
+                  <option value="">Select patient</option>
+                  <option *ngFor="let patient of patients" [value]="patient.patient_id">
+                    {{ patient.first_name }} {{ patient.last_name }} ({{ patient.patient_id }})
+                  </option>
+                </select>
+                <div class="form-hint" *ngIf="patientLoadError">{{ patientLoadError }}</div>
               </div>
               <div class="form-group">
                 <label for="scan-type">Scan Type</label>
@@ -158,6 +162,70 @@
             <p class="side-note" *ngIf="selectedModelDescription">
               {{ selectedModelDescription }}
             </p>
+          </div>
+
+          <div class="side-card">
+            <h2 class="side-card-title">Create Patient</h2>
+            <p class="side-note">
+              Add a patient before uploading. New accounts start with no patient history.
+            </p>
+            <div class="patient-create-grid">
+              <input
+                class="patient-input"
+                type="text"
+                placeholder="First name"
+                name="newFirstName"
+                [(ngModel)]="newPatient.first_name"
+              />
+              <input
+                class="patient-input"
+                type="text"
+                placeholder="Last name"
+                name="newLastName"
+                [(ngModel)]="newPatient.last_name"
+              />
+              <input
+                class="patient-input"
+                type="date"
+                name="newDateOfBirth"
+                [(ngModel)]="newPatient.date_of_birth"
+              />
+              <select class="patient-input" name="newGender" [(ngModel)]="newPatient.gender">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+              <input
+                class="patient-input"
+                type="tel"
+                placeholder="Phone"
+                name="newPhone"
+                [(ngModel)]="newPatient.phone"
+              />
+              <input
+                class="patient-input"
+                type="text"
+                placeholder="Emergency contact"
+                name="newEmergencyContact"
+                [(ngModel)]="newPatient.emergency_contact"
+              />
+              <input
+                class="patient-input patient-input-wide"
+                type="text"
+                placeholder="Address"
+                name="newAddress"
+                [(ngModel)]="newPatient.address"
+              />
+            </div>
+            <p class="side-note error-note" *ngIf="createPatientError">{{ createPatientError }}</p>
+            <button
+              class="btn ghost patient-create-button"
+              type="button"
+              (click)="createPatient()"
+              [disabled]="isCreatingPatient"
+            >
+              {{ isCreatingPatient ? 'Creating...' : 'Create patient' }}
+            </button>
           </div>
 
           <div class="side-card" *ngIf="availableModels.length">

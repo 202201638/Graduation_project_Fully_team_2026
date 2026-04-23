@@ -318,6 +318,35 @@
   color: #64748b;
 }
 
+.error-note {
+  color: #dc2626;
+}
+
+.patient-create-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin-top: 0.9rem;
+}
+
+.patient-input {
+  min-width: 0;
+  border-radius: 0.75rem;
+  border: 1px solid #d1d5db;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.88rem;
+  outline: none;
+}
+
+.patient-input-wide {
+  grid-column: 1 / -1;
+}
+
+.patient-create-button {
+  width: 100%;
+  margin-top: 0.85rem;
+}
+
 .model-list {
   display: grid;
   gap: 0.65rem;
@@ -463,6 +492,10 @@
   }
 
   .metric-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .patient-create-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -33,7 +33,7 @@ export class Processing implements OnInit, OnDestroy {
     const currentState = this.analysisState.getProcessState();
 
     if (currentState.status === 'completed' && this.analysisState.getResult()) {
-      this.router.navigate(['/result']);
+      this.router.navigate(['/result', this.analysisState.getResult()!.analysisId]);
       return;
     }
 
@@ -48,7 +48,7 @@ export class Processing implements OnInit, OnDestroy {
 
     this.processSubscription = this.analysisState.processState$.subscribe((state) => {
       if (state.status === 'completed' && this.analysisState.getResult()) {
-        this.router.navigate(['/result']);
+        this.router.navigate(['/result', this.analysisState.getResult()!.analysisId]);
       } else if (state.status === 'error') {
         this.errorMessage = state.error || 'The analysis request failed.';
       }

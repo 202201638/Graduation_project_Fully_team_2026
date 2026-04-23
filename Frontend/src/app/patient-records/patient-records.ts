@@ -1,11 +1,17 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule, Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
+import { Subscription } from 'rxjs';
+
 import { AnalysisResult, AnalysisStateService } from '../analysis-state.service';
+import { ApiPatientSummary, ApiService } from '../shared/api.service';
+import { AuthService } from '../shared/auth.service';
 import { NavbarComponent } from '../shared/navbar/navbar.component';
+import { ProfileService } from '../profile/profile.service';
 
 interface PatientRecordRow {
+  analysisId: string;
   id: string;
   patientName: string;
   date: string;
@@ -13,7 +19,6 @@ interface PatientRecordRow {
   statusVariant: 'danger' | 'success' | 'warning';
   image?: string;
   confidence: number;
-  source: 'history' | 'sample';
 }
 
 @Component({
@@ -23,90 +28,44 @@ interface PatientRecordRow {
   templateUrl: './patient-records.html',
   styleUrl: './patient-records.css',
 })
-export class PatientRecords implements OnInit {
+export class PatientRecords implements OnInit, OnDestroy {
   search = '';
-  diagnosisFilter = 'all'; // all | pneumonia | suspected | healthy
+  diagnosisFilter = 'all';
   dateFilter = '';
 
   records: PatientRecordRow[] = [];
   filtered: PatientRecordRow[] = [];
   selected: PatientRecordRow | null = null;
+  patients: ApiPatientSummary[] = [];
+  errorMessage = '';
 
   readonly pageSize = 5;
   currentPage = 1;
+  private historySubscription?: Subscription;
 
   constructor(
     private analysisState: AnalysisStateService,
+    private apiService: ApiService,
+    private authService: AuthService,
+    private profileService: ProfileService,
     private router: Router,
   ) {}
 
   ngOnInit() {
-    const history = this.analysisState.getHistory();
+    this.historySubscription = this.analysisState.history$.subscribe((history) => {
+      this.records = history.map((result) => this.toRecordRow(result));
+      this.applyFilters();
+    });
+    this.loadPatients();
+    this.analysisState.loadAuthenticatedHistory();
+  }
 
-    const historyRows: PatientRecordRow[] = history.map(
-      (r: AnalysisResult, index: number) => ({
-        id: r.patientId || `HX-${index + 1}`,
-        patientName: `Patient ${r.patientId || index + 1}`,
-        date: r.date,
-        diagnosis: r.diagnosis,
-        statusVariant: r.statusVariant,
-        image: r.image,
-        confidence: r.confidence,
-        source: 'history',
-      }),
-    );
+  ngOnDestroy(): void {
+    this.historySubscription?.unsubscribe();
+  }
 
-    const sampleRows: PatientRecordRow[] = [
-      {
-        id: 'PX001',
-        patientName: 'Alice Smith',
-        date: '2025-10-28',
-        diagnosis: 'Pneumonia Detected',
-        statusVariant: 'danger',
-        confidence: 92.5,
-        source: 'sample',
-      },
-      {
-        id: 'PX002',
-        patientName: 'Bob Johnson',
-        date: '2025-10-27',
-        diagnosis: 'Pneumonia Detected',
-        statusVariant: 'danger',
-        confidence: 89.1,
-        source: 'sample',
-      },
-      {
-        id: 'PX003',
-        patientName: 'Carol White',
-        date: '2025-10-25',
-        diagnosis: 'Healthy',
-        statusVariant: 'success',
-        confidence: 97.2,
-        source: 'sample',
-      },
-      {
-        id: 'PX004',
-        patientName: 'David Brown',
-        date: '2025-10-24',
-        diagnosis: 'Pneumonia Detected',
-        statusVariant: 'danger',
-        confidence: 90.4,
-        source: 'sample',
-      },
-      {
-        id: 'PX005',
-        patientName: 'Eve Davis',
-        date: '2025-10-23',
-        diagnosis: 'Healthy',
-        statusVariant: 'success',
-        confidence: 95.3,
-        source: 'sample',
-      },
-    ];
-
-    // Show real uploads first, then samples
-    this.records = [...historyRows, ...sampleRows];
-    this.applyFilters();
+  get avatarInitials(): string {
+    return this.profileService.profile.avatarInitials;
   }
 
   get paged(): PatientRecordRow[] {
@@ -118,30 +77,68 @@ export class PatientRecords implements OnInit {
     return Math.max(1, Math.ceil(this.filtered.length / this.pageSize));
   }
 
+  private loadPatients(): void {
+    const token = this.authService.getCurrentToken();
+    if (!token) {
+      this.errorMessage = 'Sign in to load patient records.';
+      return;
+    }
+
+    this.apiService.getPatients(token).subscribe({
+      next: (patients) => {
+        this.patients = patients;
+        this.errorMessage = '';
+        this.records = this.analysisState.getHistory().map((result) => this.toRecordRow(result));
+        this.applyFilters();
+      },
+      error: (error) => {
+        this.errorMessage = error?.error?.detail || 'Unable to load patient records.';
+      },
+    });
+  }
+
+  private getPatientName(patientId: string): string {
+    const patient = this.patients.find((item) => item.patient_id === patientId);
+    return patient ? `${patient.first_name} ${patient.last_name}` : `Patient ${patientId}`;
+  }
+
+  private toRecordRow(result: AnalysisResult): PatientRecordRow {
+    return {
+      analysisId: result.analysisId,
+      id: result.patientId,
+      patientName: this.getPatientName(result.patientId),
+      date: result.date,
+      diagnosis: result.diagnosis,
+      statusVariant: result.statusVariant,
+      image: result.renderedImage || result.image,
+      confidence: result.confidence,
+    };
+  }
+
   applyFilters() {
     const searchLower = this.search.trim().toLowerCase();
 
-    this.filtered = this.records.filter((r) => {
+    this.filtered = this.records.filter((record) => {
       const matchesSearch =
         !searchLower ||
-        r.id.toLowerCase().includes(searchLower) ||
-        r.patientName.toLowerCase().includes(searchLower);
+        record.id.toLowerCase().includes(searchLower) ||
+        record.patientName.toLowerCase().includes(searchLower);
 
-      const diagLower = r.diagnosis.toLowerCase();
+      const diagLower = record.diagnosis.toLowerCase();
       const matchesDiagnosis =
         this.diagnosisFilter === 'all'
           ? true
           : this.diagnosisFilter === 'pneumonia'
-          ? r.statusVariant === 'danger'
+          ? record.statusVariant === 'danger'
           : this.diagnosisFilter === 'suspected'
-          ? r.statusVariant === 'warning' || diagLower.includes('suspected')
+          ? record.statusVariant === 'warning' || diagLower.includes('suspected')
           : this.diagnosisFilter === 'healthy'
-          ? r.statusVariant === 'success' ||
+          ? record.statusVariant === 'success' ||
             diagLower.includes('healthy') ||
             diagLower.includes('no pneumonia')
           : true;
 
-      const matchesDate = !this.dateFilter || r.date === this.dateFilter;
+      const matchesDate = !this.dateFilter || record.date === this.dateFilter;
 
       return matchesSearch && matchesDiagnosis && matchesDate;
     });
@@ -178,13 +175,18 @@ export class PatientRecords implements OnInit {
     }
   }
 
+  viewSelectedResult(): void {
+    if (this.selected) {
+      this.router.navigate(['/result', this.selected.analysisId]);
+    }
+  }
+
   private findAnalysisForSelected(): AnalysisResult | null {
     if (!this.selected) return null;
-    const history = this.analysisState.getHistory();
     return (
-      history.find(
-        (r) => r.patientId === this.selected!.id && r.date === this.selected!.date,
-      ) || null
+      this.analysisState
+        .getHistory()
+        .find((result) => result.analysisId === this.selected?.analysisId) || null
     );
   }
 
@@ -222,7 +224,7 @@ export class PatientRecords implements OnInit {
   <div class="section"><span class="label">Scan date:</span> ${r.date}</div>
   <div class="section"><span class="label">Diagnosis:</span> ${r.diagnosis}</div>
   <div class="section"><span class="label">Confidence:</span> ${r.confidence}%</div>
-  ${r.image ? `<div class="section"><span class="label">X-ray Image:</span><br/><img src="${r.image}" alt="X-ray" /></div>` : ''}
+  ${r.renderedImage || r.image ? `<div class="section"><span class="label">X-ray Image:</span><br/><img src="${r.renderedImage || r.image}" alt="X-ray" /></div>` : ''}
 </body>
 </html>`;
 
@@ -237,25 +239,22 @@ export class PatientRecords implements OnInit {
   enableComparison() {
     if (!this.selected) return;
 
-    const history = this.analysisState.getHistory();
-    if (!history.length) {
-      alert('No scans available for comparison.');
+    const current = this.findAnalysisForSelected();
+    if (!current) {
+      alert('Comparison is only available for saved scans.');
       return;
     }
 
-    const base = this.findAnalysisForSelected();
-    if (!base) {
-      alert('Comparison is only available for scans uploaded in this session.');
+    const samePatientHistory = this.analysisState
+      .getHistory()
+      .filter((item) => item.patientId === current.patientId);
+    const index = samePatientHistory.findIndex((item) => item.analysisId === current.analysisId);
+    const previous = samePatientHistory[index + 1];
+
+    if (!previous) {
+      alert('No previous scan found for this patient.');
       return;
     }
-
-    const index = history.indexOf(base);
-    if (index <= 0) {
-      alert('No previous scan found for comparison.');
-      return;
-    }
-
-    const previous = history[index - 1];
 
     const compareHtml = `<!DOCTYPE html>
 <html lang="en">
@@ -279,14 +278,14 @@ export class PatientRecords implements OnInit {
       <div>Patient ID: ${previous.patientId}</div>
       <div>Diagnosis: ${previous.diagnosis}</div>
       <div>Confidence: ${previous.confidence}%</div>
-      ${previous.image ? `<img src="${previous.image}" alt="Previous X-ray" />` : '<div>No image available.</div>'}
+      ${previous.renderedImage ? `<img src="${previous.renderedImage}" alt="Previous X-ray" />` : '<div>No image available.</div>'}
     </div>
     <div class="card">
-      <div class="title">Current Scan (${base.date})</div>
-      <div>Patient ID: ${base.patientId}</div>
-      <div>Diagnosis: ${base.diagnosis}</div>
-      <div>Confidence: ${base.confidence}%</div>
-      ${base.image ? `<img src="${base.image}" alt="Current X-ray" />` : '<div>No image available.</div>'}
+      <div class="title">Current Scan (${current.date})</div>
+      <div>Patient ID: ${current.patientId}</div>
+      <div>Diagnosis: ${current.diagnosis}</div>
+      <div>Confidence: ${current.confidence}%</div>
+      ${current.renderedImage ? `<img src="${current.renderedImage}" alt="Current X-ray" />` : '<div>No image available.</div>'}
     </div>
   </div>
 </body>

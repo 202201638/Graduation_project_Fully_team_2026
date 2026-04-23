@@ -4,3 +4,8 @@ Backend/uploads/
 Backend/venv/
 Backend/**/__pycache__/
 Backend/**/*.pyc
+**/.pytest_cache/
+**/__pycache__/
+**/*.pyc
+**/node_modules/
+**/dist/

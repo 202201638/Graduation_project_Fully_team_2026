@@ -1,14 +1,18 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, forkJoin } from 'rxjs';
+import { map, tap, throwError } from 'rxjs';
 import {
+  ApiAnalysisSummary,
   ApiAvailableModel,
   ApiDetectionPrediction,
   ApiDiagnosisStatus,
   ApiMetadataSummaryResponse,
   ApiModelStatusResponse,
   ApiService,
+  ApiStoredAnalysisResponse,
   ApiWebAnalysisResponse,
 } from './shared/api.service';
+import { AuthService } from './shared/auth.service';
 
 export interface AnalysisMetadata {
   manifest: Record<string, unknown>;
@@ -72,12 +76,17 @@ export class AnalysisStateService {
   private metadataLoaded = false;
 
   private metadataSubject = new BehaviorSubject<AnalysisMetadata | null>(null);
+  private historySubject = new BehaviorSubject<AnalysisResult[]>([]);
   private processStateSubject = new BehaviorSubject<AnalysisProcessState>({ status: 'idle' });
 
   readonly metadata$ = this.metadataSubject.asObservable();
+  readonly history$ = this.historySubject.asObservable();
   readonly processState$ = this.processStateSubject.asObservable();
 
-  constructor(private apiService: ApiService) {}
+  constructor(
+    private apiService: ApiService,
+    private authService: AuthService,
+  ) {}
 
   private normalizeMetadata(
     metadata: ApiMetadataSummaryResponse,
@@ -139,7 +148,7 @@ export class AnalysisStateService {
           ? analysisDetails['weights_file']
           : undefined) ||
         metadataModel?.weights_file ||
-        'yolo_best.pt',
+        'fasterrcnn.pt',
       analysisDetails,
     };
   }
@@ -226,6 +235,69 @@ export class AnalysisStateService {
     };
   }
 
+  private mapSummaryToResult(summary: ApiAnalysisSummary): AnalysisResult {
+    const diagnosisStatus = summary.diagnosis_status || 'no_pneumonia_detected';
+    const confidence = Math.round((summary.confidence_score || 0) * 1000) / 10;
+
+    return {
+      analysisId: summary.analysis_id,
+      patientId: summary.patient_id,
+      scanType: summary.scan_type || '',
+      date: summary.created_at.slice(0, 10),
+      image: this.apiService.toAbsoluteUrl(summary.rendered_image_url || summary.image_url),
+      originalImage: this.apiService.toAbsoluteUrl(summary.image_url),
+      renderedImage: this.apiService.toAbsoluteUrl(summary.rendered_image_url || summary.image_url),
+      diagnosis: this.getDiagnosisLabel(diagnosisStatus),
+      diagnosisStatus,
+      statusVariant: this.getStatusVariant(diagnosisStatus),
+      modelName: summary.model_name || '',
+      modelDisplayName: summary.model_display_name || summary.model_name || 'Selected model',
+      modelFamily: summary.model_family || 'detection',
+      taskName: '',
+      weightsFile: '',
+      analysisDetails: {},
+      confidence,
+      detected: diagnosisStatus === 'pneumonia_detected',
+      suspected: diagnosisStatus === 'suspected_pneumonia',
+      findings: '',
+      recommendations: '',
+      detections: [],
+      processingTime: 0,
+      metadata: this.metadataSubject.value ?? undefined,
+    };
+  }
+
+  private makeDraftFromStoredResponse(response: ApiStoredAnalysisResponse): AnalysisDraft {
+    const analysisDetails = this.toRecord(response.result.analysis_details);
+
+    return {
+      patientId: response.patient_id || '',
+      scanType: response.scan_type || '',
+      modelName:
+        response.model_name ||
+        (typeof analysisDetails['model_name'] === 'string' ? analysisDetails['model_name'] : ''),
+      modelDisplayName:
+        response.model_display_name ||
+        (typeof analysisDetails['model_display_name'] === 'string'
+          ? analysisDetails['model_display_name']
+          : undefined),
+      modelFamily:
+        response.model_family ||
+        (typeof analysisDetails['model_family'] === 'string'
+          ? analysisDetails['model_family']
+          : undefined),
+      imagePreview: this.apiService.toAbsoluteUrl(
+        response.result.rendered_image_url || response.image_url,
+      ),
+    };
+  }
+
+  private rememberResult(result: AnalysisResult): void {
+    this.lastResult = result;
+    this.history = [result, ...this.history.filter((item) => item.analysisId !== result.analysisId)];
+    this.historySubject.next(this.history.slice());
+  }
+
   loadMetadata() {
     if (this.metadataLoaded) {
       return;
@@ -265,7 +337,12 @@ export class AnalysisStateService {
     };
     this.processStateSubject.next({ status: 'processing' });
 
-    this.apiService.analyzeXray(file, patientId, scanType, modelName).subscribe({
+    const token = this.authService.getCurrentToken();
+    const request$ = token
+      ? this.apiService.uploadXray(file, patientId, scanType, token, modelName)
+      : this.apiService.analyzeXray(file, patientId, scanType, modelName);
+
+    request$.subscribe({
       next: (response) => {
         const currentDraft = this.draft ?? {
           patientId,
@@ -276,8 +353,7 @@ export class AnalysisStateService {
           imagePreview,
         };
         const result = this.mapResponseToResult(response, currentDraft);
-        this.lastResult = result;
-        this.history = [result, ...this.history];
+        this.rememberResult(result);
         this.draft = null;
         this.processStateSubject.next({ status: 'completed' });
       },
@@ -293,6 +369,38 @@ export class AnalysisStateService {
         });
       },
     });
+  }
+
+  loadAuthenticatedHistory(): void {
+    const token = this.authService.getCurrentToken();
+    if (!token) {
+      this.history = [];
+      this.historySubject.next([]);
+      return;
+    }
+
+    this.apiService.getAllAnalyses(token).subscribe({
+      next: (summaries) => {
+        this.history = summaries.map((summary) => this.mapSummaryToResult(summary));
+        this.historySubject.next(this.history.slice());
+      },
+      error: () => {
+        this.history = [];
+        this.historySubject.next([]);
+      },
+    });
+  }
+
+  loadStoredAnalysis(analysisId: string) {
+    const token = this.authService.getCurrentToken();
+    if (!token) {
+      return throwError(() => new Error('Sign in to view this analysis.'));
+    }
+
+    return this.apiService.getAnalysis(analysisId, token).pipe(
+      map((response) => this.mapResponseToResult(response, this.makeDraftFromStoredResponse(response))),
+      tap((result) => this.rememberResult(result)),
+    );
   }
 
   getDraft(): AnalysisDraft | null {
@@ -312,8 +420,7 @@ export class AnalysisStateService {
   }
 
   setResult(result: AnalysisResult) {
-    this.lastResult = result;
-    this.history = [result, ...this.history];
+    this.rememberResult(result);
   }
 
   getResult(): AnalysisResult | null {
@@ -327,6 +434,8 @@ export class AnalysisStateService {
   clear() {
     this.lastResult = null;
     this.draft = null;
+    this.history = [];
+    this.historySubject.next([]);
     this.resetProcessState();
   }
 }

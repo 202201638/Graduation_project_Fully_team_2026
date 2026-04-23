@@ -137,9 +137,16 @@
 
         <aside class="card clinic-card" aria-label="Clinic information">
           <h2 class="section-title">Clinic Information</h2>
-          <p class="clinic-name">{{ clinic.name }}</p>
-          <p class="clinic-address">{{ clinic.address }}</p>
-          <p class="clinic-phone">{{ clinic.phone }}</p>
+          <ng-container *ngIf="clinic.name; else clinicEmpty">
+            <p class="clinic-name">{{ clinic.name }}</p>
+            <p class="clinic-address">{{ clinic.address }}</p>
+            <p class="clinic-phone">{{ clinic.phone }}</p>
+          </ng-container>
+          <ng-template #clinicEmpty>
+            <p class="empty-state">
+              Clinic details are not configured for this beta account yet.
+            </p>
+          </ng-template>
         </aside>
       </section>
 
@@ -162,11 +169,14 @@
               {{ item.time }}
             </div>
           </article>
+          <p class="empty-state" *ngIf="!activity.length">
+            No saved analysis activity yet. Create a patient and upload a scan to start.
+          </p>
         </div>
       </section>
 
       <footer class="profile-footer">
-        <span>© 2025 Mediscan AI. All rights reserved.</span>
+        <span>Mediscan AI public beta.</span>
       </footer>
     </section>
   </main>

@@ -6,7 +6,8 @@ import { Subscription } from 'rxjs';
 import { AnalysisMetadata, AnalysisStateService } from '../analysis-state.service';
 import { ProfileService } from '../profile/profile.service';
 import { NavbarComponent } from '../shared/navbar/navbar.component';
-import { ApiAvailableModel } from '../shared/api.service';
+import { ApiAvailableModel, ApiPatientSummary, ApiService } from '../shared/api.service';
+import { AuthService } from '../shared/auth.service';
 
 @Component({
   selector: 'app-upload',
@@ -20,10 +21,24 @@ export class Upload implements OnInit, OnDestroy {
   scanType = '';
   selectedModelKey = '';
   metadata: AnalysisMetadata | null = null;
+  patients: ApiPatientSummary[] = [];
+  patientLoadError = '';
+  createPatientError = '';
+  isCreatingPatient = false;
+  newPatient = {
+    first_name: '',
+    last_name: '',
+    date_of_birth: '',
+    gender: 'other',
+    phone: '',
+    address: '',
+    emergency_contact: '',
+  };
 
   private selectedFile: File | null = null;
   selectedFilePreview: string | null = null;
   private metadataSubscription?: Subscription;
+  private historySubscription?: Subscription;
 
   recentUploads: { id: string; date: string; image?: string }[] = [];
 
@@ -121,6 +136,8 @@ export class Upload implements OnInit, OnDestroy {
     private router: Router,
     private analysisState: AnalysisStateService,
     private profileService: ProfileService,
+    private apiService: ApiService,
+    private authService: AuthService,
   ) {}
 
   ngOnInit() {
@@ -138,21 +155,45 @@ export class Upload implements OnInit, OnDestroy {
       this.metadata = metadata;
       this.applyDefaultModel();
     });
+    this.historySubscription = this.analysisState.history$.subscribe((history) => {
+      this.recentUploads = history.slice(0, 6).map((item) => ({
+        id: item.patientId,
+        date: item.date,
+        image: item.renderedImage || item.image,
+      }));
+    });
 
     if (typeof window !== 'undefined') {
       this.analysisState.loadMetadata();
+      this.analysisState.loadAuthenticatedHistory();
+      this.loadPatients();
     }
-
-    const history = this.analysisState.getHistory();
-    this.recentUploads = history.slice(0, 6).map((item) => ({
-      id: item.patientId,
-      date: item.date,
-      image: item.renderedImage || item.image,
-    }));
   }
 
   ngOnDestroy() {
     this.metadataSubscription?.unsubscribe();
+    this.historySubscription?.unsubscribe();
+  }
+
+  loadPatients() {
+    const token = this.authService.getCurrentToken();
+    if (!token) {
+      this.patientLoadError = 'Sign in to load patient records.';
+      return;
+    }
+
+    this.apiService.getPatients(token).subscribe({
+      next: (patients) => {
+        this.patients = patients;
+        this.patientLoadError = '';
+        if (!this.patientId && patients.length) {
+          this.patientId = patients[0].patient_id;
+        }
+      },
+      error: (error) => {
+        this.patientLoadError = error?.error?.detail || 'Unable to load patient records.';
+      },
+    });
   }
 
   private applyDefaultModel() {
@@ -215,5 +256,60 @@ export class Upload implements OnInit, OnDestroy {
       this.selectedFilePreview,
     );
     this.router.navigate(['/processing']);
+  }
+
+  createPatient() {
+    const token = this.authService.getCurrentToken();
+    if (!token) {
+      this.createPatientError = 'Sign in before creating a patient record.';
+      return;
+    }
+
+    const patientData = {
+      first_name: this.newPatient.first_name.trim(),
+      last_name: this.newPatient.last_name.trim(),
+      date_of_birth: this.newPatient.date_of_birth,
+      gender: this.newPatient.gender,
+      phone: this.newPatient.phone.trim(),
+      address: this.newPatient.address.trim(),
+      emergency_contact: this.newPatient.emergency_contact.trim(),
+    };
+
+    if (
+      !patientData.first_name ||
+      !patientData.last_name ||
+      !patientData.date_of_birth ||
+      !patientData.gender ||
+      !patientData.phone ||
+      !patientData.address ||
+      !patientData.emergency_contact
+    ) {
+      this.createPatientError = 'Fill in all patient fields before saving.';
+      return;
+    }
+
+    this.isCreatingPatient = true;
+    this.createPatientError = '';
+
+    this.apiService.createPatient(patientData, token).subscribe({
+      next: (patient) => {
+        this.patients = [patient, ...this.patients];
+        this.patientId = patient.patient_id;
+        this.newPatient = {
+          first_name: '',
+          last_name: '',
+          date_of_birth: '',
+          gender: 'other',
+          phone: '',
+          address: '',
+          emergency_contact: '',
+        };
+        this.isCreatingPatient = false;
+      },
+      error: (error) => {
+        this.createPatientError = error?.error?.detail || 'Unable to create patient record.';
+        this.isCreatingPatient = false;
+      },
+    });
   }
 }

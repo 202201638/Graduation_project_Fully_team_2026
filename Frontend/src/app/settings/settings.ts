@@ -5,13 +5,6 @@ import { RouterModule } from '@angular/router';
 import { ProfileService } from '../profile/profile.service';
 import { NavbarComponent } from '../shared/navbar/navbar.component';
 
-interface ActiveSession {
-  device: string;
-  location: string;
-  browser: string;
-  lastActive: string;
-}
-
 @Component({
   selector: 'app-settings',
   standalone: true,
@@ -30,53 +23,32 @@ export class Settings {
   twoFactorAuth = true;
   appTheme: 'system' | 'light' | 'dark' = 'system';
   language = 'en';
-
-  activeSessions: ActiveSession[] = [
-    {
-      device: 'Desktop - Chrome',
-      location: 'New York, USA',
-      browser: 'Chrome 120.0',
-      lastActive: 'Last active 2 hours ago',
-    },
-    {
-      device: 'Mobile - Safari',
-      location: 'Los Angeles, USA',
-      browser: 'Safari iOS 16.4',
-      lastActive: 'Last active 26 minutes ago',
-    },
-  ];
+  actionMessage = '';
+  readonly betaNotice =
+    'Only display profile edits are available in this beta. Security, notification, session, and account-deletion actions are hidden or disabled until backend support is added.';
 
   constructor(private profileService: ProfileService) {
     this.resetToDefaults();
   }
 
   onSave(): void {
+    this.actionMessage = '';
     this.profileService.updateProfile({
       name: this.displayName,
       role: this.displayRole,
       email: this.email,
       avatarInitials: this.avatarInitials,
     });
-
-    console.log('Settings saved', {
-      name: this.displayName,
-      role: this.displayRole,
-      email: this.email,
-      emailNotifications: this.emailNotifications,
-      smsNotifications: this.smsNotifications,
-      shareAnonymizedData: this.shareAnonymizedData,
-      twoFactorAuth: this.twoFactorAuth,
-      appTheme: this.appTheme,
-      language: this.language,
-    });
+    this.actionMessage = 'Display profile settings updated for this browser session.';
   }
 
   onCancel(): void {
     this.resetToDefaults();
+    this.actionMessage = '';
   }
 
   onDeleteAccount(): void {
-    alert('Account deletion is not implemented in this demo.');
+    this.actionMessage = 'Account deletion is disabled until a verified backend deletion flow is available.';
   }
 
   private resetToDefaults(): void {

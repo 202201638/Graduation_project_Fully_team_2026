@@ -12,10 +12,10 @@
       </div>
       <div class="topbar-right">
         <button class="icon-button" type="button" aria-label="Search">
-          🔍
+          &#128269;
         </button>
         <button class="icon-button" type="button" aria-label="Notifications">
-          🔔
+          &#128276;
         </button>
         <button
           class="avatar"
@@ -23,7 +23,7 @@
           aria-label="Open profile"
           routerLink="/profile"
         >
-          <span class="avatar-initials">AJ</span>
+          <span class="avatar-initials">{{ avatarInitials }}</span>
         </button>
       </div>
     </header>
@@ -32,18 +32,19 @@
       <header class="settings-header">
         <h1 class="settings-title">Settings</h1>
         <p class="settings-subtitle">
-          Manage your account preferences, notification settings, and app
-          customization.
+          Manage beta-safe account display settings.
         </p>
+        <p class="settings-note">{{ betaNotice }}</p>
+        <p class="settings-note success" *ngIf="actionMessage">{{ actionMessage }}</p>
       </header>
 
       <div class="settings-stack">
         <section class="card section-card" aria-labelledby="account-settings">
           <div class="section-header">
             <div>
-              <h2 id="account-settings" class="section-title">Account Settings</h2>
+              <h2 id="account-settings" class="section-title">Account Display</h2>
               <p class="section-description">
-                Update your basic account information and security details.
+                These details control what the current browser displays in the beta UI.
               </p>
             </div>
           </div>
@@ -93,10 +94,10 @@
             <div class="password-text">
               <div class="password-title">Change Password</div>
               <div class="password-description">
-                Use a strong password with at least 8 characters.
+                Disabled until the backend password-change endpoint is available.
               </div>
             </div>
-            <button class="btn outline" type="button">Update Password</button>
+            <button class="btn outline" type="button" disabled>Update Password</button>
           </div>
         </section>
 
@@ -110,8 +111,7 @@
                 Notification Preferences
               </h2>
               <p class="section-description">
-                Choose how you want to receive important alerts and case
-                updates.
+                Notification delivery is disabled until backend notification settings exist.
               </p>
             </div>
           </div>
@@ -120,11 +120,11 @@
             <div class="toggle-text">
               <div class="toggle-title">Email Notifications</div>
               <div class="toggle-description">
-                Receive email alerts for important updates and case reports.
+                Disabled for public beta.
               </div>
             </div>
             <label class="toggle" aria-label="Toggle email notifications">
-              <input type="checkbox" [(ngModel)]="emailNotifications" />
+              <input type="checkbox" [(ngModel)]="emailNotifications" disabled />
               <span class="toggle-slider"></span>
             </label>
           </div>
@@ -133,12 +133,11 @@
             <div class="toggle-text">
               <div class="toggle-title">SMS Notifications</div>
               <div class="toggle-description">
-                Get SMS notifications for urgent patient alerts or system
-                maintenance.
+                Disabled for public beta.
               </div>
             </div>
             <label class="toggle" aria-label="Toggle SMS notifications">
-              <input type="checkbox" [(ngModel)]="smsNotifications" />
+              <input type="checkbox" [(ngModel)]="smsNotifications" disabled />
               <span class="toggle-slider"></span>
             </label>
           </div>
@@ -149,7 +148,7 @@
             <div>
               <h2 id="privacy-settings" class="section-title">Privacy Settings</h2>
               <p class="section-description">
-                Control how anonymized data is used to improve AI models.
+                Data-sharing controls are disabled until consent storage is implemented.
               </p>
             </div>
           </div>
@@ -158,12 +157,11 @@
             <div class="toggle-text">
               <div class="toggle-title">Share Anonymized Data</div>
               <div class="toggle-description">
-                Help improve AI models by sharing anonymized X-ray analysis
-                data.
+                Disabled for public beta.
               </div>
             </div>
             <label class="toggle" aria-label="Toggle anonymized data sharing">
-              <input type="checkbox" [(ngModel)]="shareAnonymizedData" />
+              <input type="checkbox" [(ngModel)]="shareAnonymizedData" disabled />
               <span class="toggle-slider"></span>
             </label>
           </div>
@@ -174,7 +172,7 @@
             <div>
               <h2 id="security-settings" class="section-title">Security</h2>
               <p class="section-description">
-                Add extra layers of security and manage active sessions.
+                Security controls are disabled until backend session and 2FA support exists.
               </p>
             </div>
           </div>
@@ -183,11 +181,11 @@
             <div class="toggle-text">
               <div class="toggle-title">Two-Factor Authentication</div>
               <div class="toggle-description">
-                Add an extra step of security to your account.
+                Disabled for public beta.
               </div>
             </div>
             <label class="toggle" aria-label="Toggle two-factor authentication">
-              <input type="checkbox" [(ngModel)]="twoFactorAuth" />
+              <input type="checkbox" [(ngModel)]="twoFactorAuth" disabled />
               <span class="toggle-slider"></span>
             </label>
           </div>
@@ -195,17 +193,8 @@
           <div class="sessions-block">
             <div class="sessions-header">Active Sessions</div>
             <ul class="sessions-list">
-              <li
-                class="session-item"
-                *ngFor="let session of activeSessions"
-              >
-                <div class="session-main">
-                  <div class="session-device">{{ session.device }}</div>
-                  <div class="session-meta">
-                    {{ session.location }} • {{ session.browser }}
-                  </div>
-                </div>
-                <div class="session-last">{{ session.lastActive }}</div>
+              <li class="empty-state">
+                Session management is disabled until backend session tracking is available.
               </li>
             </ul>
           </div>
@@ -216,7 +205,7 @@
             <div>
               <h2 id="app-preferences" class="section-title">App Preferences</h2>
               <p class="section-description">
-                Customize how the application looks and feels for you.
+                Theme and language persistence are disabled until user preference storage exists.
               </p>
             </div>
           </div>
@@ -228,6 +217,7 @@
                 id="app-theme"
                 class="field-input"
                 [(ngModel)]="appTheme"
+                disabled
               >
                 <option value="system">System</option>
                 <option value="light">Light</option>
@@ -241,6 +231,7 @@
                 id="language"
                 class="field-input"
                 [(ngModel)]="language"
+                disabled
               >
                 <option value="en">English</option>
                 <option value="ar">Arabic</option>
@@ -263,14 +254,14 @@
               type="button"
               (click)="onDeleteAccount()"
             >
-              Delete Account
+              Account Deletion Disabled
             </button>
             <button
               class="btn primary"
               type="button"
               (click)="onSave()"
             >
-              Save Changes
+              Save Display Changes
             </button>
           </div>
         </footer>

@@ -9,7 +9,8 @@ from app.utils.security import (
     get_password_hash, 
     create_access_token, 
     verify_token,
-    generate_user_id
+    generate_user_id,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
 )
 from app.database.mongodb import require_database
 
@@ -71,7 +72,7 @@ async def login(user_credentials: UserLogin):
         )
     
     # Create access token
-    access_token_expires = timedelta(minutes=30)
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user["user_id"], "email": user["email"], "role": user["role"]},
         expires_delta=access_token_expires

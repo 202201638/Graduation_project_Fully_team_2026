@@ -27,7 +27,7 @@ class PyObjectId(ObjectId):
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str
-    role: str = Field(default="patient", pattern="^(patient|admin)$")
+    role: str = Field(default="doctor", pattern="^(doctor|patient|admin)$")
     gender: str = Field(default="male", pattern="^(male|female|other)$")
 
 class UserCreate(UserBase):

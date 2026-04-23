@@ -4,6 +4,7 @@ import { of } from 'rxjs';
 
 import { AnalysisStateService } from '../analysis-state.service';
 import { ProfileService } from '../profile/profile.service';
+import { ApiService } from '../shared/api.service';
 import { AuthService } from '../shared/auth.service';
 import { Upload } from './upload';
 
@@ -20,6 +21,7 @@ describe('Upload', () => {
           provide: AuthService,
           useValue: {
             isAuthenticated: () => false,
+            getCurrentToken: () => null,
           },
         },
         {
@@ -34,12 +36,21 @@ describe('Upload', () => {
           provide: AnalysisStateService,
           useValue: {
             metadata$: of(null),
+            history$: of([]),
             getDraft: () => null,
             getMetadata: () => null,
             loadMetadata: () => undefined,
+            loadAuthenticatedHistory: () => undefined,
             getHistory: () => [],
             resetProcessState: () => undefined,
             startAnalysis: () => undefined,
+          },
+        },
+        {
+          provide: ApiService,
+          useValue: {
+            getPatients: () => of([]),
+            createPatient: () => of({}),
           },
         },
       ],

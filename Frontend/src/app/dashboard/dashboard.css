@@ -298,6 +298,21 @@
   border-color: #fecaca;
 }
 
+.status-warning {
+  background-color: #fffbeb;
+  color: #d97706;
+  border-color: #fde68a;
+}
+
+.empty-state {
+  border: 1px dashed #cbd5e1;
+  border-radius: 1rem;
+  padding: 1rem;
+  color: #64748b;
+  background: #f8fafc;
+  font-size: 0.92rem;
+}
+
 @media (max-width: 1024px) {
   .sidebar {
     display: none;

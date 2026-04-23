@@ -28,6 +28,7 @@ export const routes: Routes = [
   { path: 'dashboard', component: Dashboard, canActivate: [authGuard] },
   { path: 'upload', component: Upload, canActivate: [authGuard] },
   { path: 'processing', component: Processing, canActivate: [authGuard] },
+  { path: 'result/:analysisId', component: Result, canActivate: [authGuard] },
   { path: 'result', component: Result, canActivate: [authGuard] },
   { path: 'records', component: PatientRecords, canActivate: [authGuard] },
   { path: 'admin', component: AdminPanel, canActivate: [authGuard] },

@@ -63,10 +63,10 @@
       <section class="activity-section" aria-label="Recent activity">
         <header class="section-header">
           <h2 class="section-title">Recent Activity</h2>
-          <button class="link-button" type="button">View All Activity</button>
+          <button class="link-button" type="button" routerLink="/records">View All Activity</button>
         </header>
 
-        <div class="activity-list">
+        <div class="activity-list" *ngIf="activities.length; else emptyActivity">
           <article
             class="activity-item"
             *ngFor="let activity of activities"
@@ -87,15 +87,24 @@
                 class="status-pill"
                 [ngClass]="{
                   'status-success': activity.statusVariant === 'success',
-                  'status-danger': activity.statusVariant === 'danger'
+                  'status-danger': activity.statusVariant === 'danger',
+                  'status-warning': activity.statusVariant === 'warning'
                 }"
               >
                 {{ activity.statusLabel }}
               </span>
-              <button class="link-button" type="button">View Details</button>
+              <button class="link-button" type="button" [routerLink]="['/result', activity.analysisId]">
+                View Details
+              </button>
             </div>
           </article>
         </div>
+
+        <ng-template #emptyActivity>
+          <div class="empty-state">
+            No saved analyses yet. Create a patient, upload an X-ray, and completed scans will appear here.
+          </div>
+        </ng-template>
       </section>
     </section>
   </main>

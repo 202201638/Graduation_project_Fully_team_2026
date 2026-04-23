@@ -10,9 +10,30 @@ import bcrypt
 load_dotenv()
 
 # Security configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+DEFAULT_DEVELOPMENT_SECRET = "your-secret-key-here-change-in-production"
+APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
+SECRET_KEY = os.getenv("SECRET_KEY", DEFAULT_DEVELOPMENT_SECRET)
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+
+
+def _int_env(name: str, default: int) -> int:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+    try:
+        return int(raw_value)
+    except ValueError:
+        return default
+
+
+ACCESS_TOKEN_EXPIRE_MINUTES = _int_env("ACCESS_TOKEN_EXPIRE_MINUTES", 30)
+
+if APP_ENV in {"prod", "production"} and (
+    not SECRET_KEY or SECRET_KEY == DEFAULT_DEVELOPMENT_SECRET or len(SECRET_KEY) < 32
+):
+    raise RuntimeError(
+        "SECRET_KEY must be set to a strong unique value when APP_ENV=production."
+    )
 
 # Use bcrypt directly for better compatibility
 def hash_password(password: str) -> str:

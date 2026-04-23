@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AnalysisResult, AnalysisStateService } from '../analysis-state.service';
 
 @Component({
@@ -12,6 +12,8 @@ import { AnalysisResult, AnalysisStateService } from '../analysis-state.service'
 })
 export class Result implements OnInit {
   result: AnalysisResult | null = null;
+  isLoading = false;
+  errorMessage = '';
 
   get statusLabel(): string {
     return this.result?.diagnosis || 'No pneumonia detected';
@@ -109,13 +111,32 @@ export class Result implements OnInit {
 
   constructor(
     private router: Router,
+    private route: ActivatedRoute,
     private analysisState: AnalysisStateService,
   ) {}
 
   ngOnInit() {
-    this.result = this.analysisState.getResult();
+    const analysisId = this.route.snapshot.paramMap.get('analysisId');
+    const currentResult = this.analysisState.getResult();
+
+    if (analysisId && currentResult?.analysisId !== analysisId) {
+      this.isLoading = true;
+      this.analysisState.loadStoredAnalysis(analysisId).subscribe({
+        next: (result) => {
+          this.result = result;
+          this.isLoading = false;
+        },
+        error: (error) => {
+          this.errorMessage = error?.message || 'Unable to load this saved analysis.';
+          this.isLoading = false;
+        },
+      });
+      return;
+    }
+
+    this.result = currentResult;
     if (!this.result) {
-      this.router.navigate(['/upload']);
+      this.router.navigate(['/records']);
     }
   }
 

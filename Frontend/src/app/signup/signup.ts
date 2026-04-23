@@ -48,7 +48,7 @@ export class Signup {
         email,
         full_name: fullName,
         password: this.password,
-        role: 'patient',
+        role: 'doctor',
       })
       .pipe(
         switchMap(() =>

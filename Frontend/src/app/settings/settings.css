@@ -109,6 +109,17 @@
   color: #6b7280;
 }
 
+.settings-note {
+  margin: 0.75rem 0 0;
+  color: #4b5563;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.settings-note.success {
+  color: #166534;
+}
+
 .settings-stack {
   display: flex;
   flex-direction: column;
@@ -314,6 +325,13 @@
   gap: 0.15rem;
 }
 
+.empty-state {
+  list-style: none;
+  color: #6b7280;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
 .field-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -335,6 +353,11 @@
     color 150ms ease-out,
     box-shadow 150ms ease-out,
     transform 120ms ease-out;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .btn.primary {

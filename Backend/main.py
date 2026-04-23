@@ -18,6 +18,32 @@ import uvicorn
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _cors_origins() -> list[str]:
+    raw_origins = os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:4200,http://127.0.0.1:4200",
+    )
+    return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+
+
+def _backend_path_from_env(name: str, default_relative: str) -> str:
+    raw_value = os.getenv(name)
+    path = raw_value if raw_value else os.path.join(BASE_DIR, default_relative)
+    if os.path.isabs(path):
+        return path
+    return os.path.join(BASE_DIR, path)
+
+
+DEBUG_MODE = _env_bool("DEBUG", False)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await connect_to_mongodb()
@@ -38,14 +64,14 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200", "http://127.0.0.1:4200"],
+    allow_origins=_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Mount static files for uploads
-app.mount("/uploads", StaticFiles(directory=os.path.join(BASE_DIR, "uploads")), name="uploads")
+app.mount("/uploads", StaticFiles(directory=_backend_path_from_env("UPLOAD_DIR", "uploads")), name="uploads")
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
@@ -56,23 +82,24 @@ app.include_router(xray_analysis.router, prefix="/api/xray", tags=["xray-analysi
 async def root():
     return {"message": "Medical System API is running"}
 
-@app.get("/debug")
-async def debug_info():
-    """Debug endpoint to show all available routes"""
-    from fastapi.routing import APIRoute
-    routes = []
-    for route in app.routes:
-        if isinstance(route, APIRoute):
-            routes.append({
-                "path": route.path,
-                "methods": list(route.methods),
-                "name": route.name
-            })
-    return {
-        "message": "Debug info",
-        "total_routes": len(routes),
-        "routes": routes
-    }
+if DEBUG_MODE:
+    @app.get("/debug")
+    async def debug_info():
+        """Debug endpoint to show all available routes"""
+        from fastapi.routing import APIRoute
+        routes = []
+        for route in app.routes:
+            if isinstance(route, APIRoute):
+                routes.append({
+                    "path": route.path,
+                    "methods": list(route.methods),
+                    "name": route.name
+                })
+        return {
+            "message": "Debug info",
+            "total_routes": len(routes),
+            "routes": routes
+        }
 
 @app.get("/health")
 async def health_check():
@@ -101,4 +128,9 @@ async def favicon():
     return Response(status_code=204)
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "main:app",
+        host=os.getenv("API_HOST", "0.0.0.0"),
+        port=int(os.getenv("API_PORT", "8000")),
+        reload=DEBUG_MODE,
+    )

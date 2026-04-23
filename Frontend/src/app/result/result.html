@@ -18,21 +18,17 @@
         <span class="sidebar-icon">&#128193;</span>
         <span>Patient Records</span>
       </a>
-      <a routerLink="/admin" class="sidebar-link">
-        <span class="sidebar-icon">&#128736;</span>
-        <span>Admin Panel</span>
-      </a>
     </nav>
 
     <div class="sidebar-footer">
-      <button class="sidebar-link" type="button">
+      <a routerLink="/profile" class="sidebar-link">
         <span class="sidebar-icon">&#128100;</span>
         <span>Profile</span>
-      </button>
-      <button class="sidebar-link" type="button">
+      </a>
+      <a routerLink="/settings" class="sidebar-link">
         <span class="sidebar-icon">&#9881;</span>
         <span>Settings</span>
-      </button>
+      </a>
       <a routerLink="/logout" class="sidebar-link sidebar-logout">
         <span class="sidebar-icon">&#9209;</span>
         <span>Logout</span>
@@ -55,7 +51,15 @@
       </div>
     </header>
 
-    <section class="result-content" *ngIf="result as r">
+    <section class="result-content" *ngIf="isLoading">
+      <div class="result-card">Loading saved analysis...</div>
+    </section>
+
+    <section class="result-content" *ngIf="!isLoading && errorMessage">
+      <div class="result-card">{{ errorMessage }}</div>
+    </section>
+
+    <section class="result-content" *ngIf="!isLoading && !errorMessage && result as r">
       <div class="result-layout">
         <section class="result-left" aria-label="Diagnosis details">
           <div class="result-card">

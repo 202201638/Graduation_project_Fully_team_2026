@@ -30,6 +30,7 @@ class XRayAnalysisBase(BaseModel):
     patient_id: str
     image_url: str
     image_filename: str
+    scan_type: Optional[str] = None
 
 class XRayAnalysisCreate(XRayAnalysisBase):
     pass
@@ -105,6 +106,10 @@ class XRayAnalysisSummary(BaseModel):
 
     analysis_id: str
     patient_id: str
+    scan_type: Optional[str] = None
+    image_url: Optional[str] = None
+    image_filename: Optional[str] = None
+    rendered_image_url: Optional[str] = None
     status: str
     model_name: Optional[str] = None
     model_display_name: Optional[str] = None

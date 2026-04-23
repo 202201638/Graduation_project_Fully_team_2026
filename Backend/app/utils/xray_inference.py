@@ -26,12 +26,30 @@ from app.utils.security import generate_analysis_id
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 MODEL_ASSETS_DIR = BASE_DIR / "model_assets"
-UPLOADS_DIR = BASE_DIR / "uploads"
+
+
+def _backend_path_from_env(name: str, default_relative: str) -> Path:
+    raw_value = os.getenv(name)
+    path = Path(raw_value) if raw_value else BASE_DIR / default_relative
+    return path if path.is_absolute() else BASE_DIR / path
+
+
+def _int_env(name: str, default: int) -> int:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+    try:
+        return int(raw_value)
+    except ValueError:
+        return default
+
+
+UPLOADS_DIR = _backend_path_from_env("UPLOAD_DIR", "uploads")
 RENDERED_DIR = UPLOADS_DIR / "rendered"
 ULTRALYTICS_CONFIG_DIR = BASE_DIR / ".ultralytics"
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff"}
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_FILE_SIZE = _int_env("MAX_FILE_SIZE", 10 * 1024 * 1024)
 TORCH_DEVICE = "cpu"
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)

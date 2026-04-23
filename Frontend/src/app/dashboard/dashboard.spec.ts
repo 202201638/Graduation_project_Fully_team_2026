@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { of } from 'rxjs';
 
+import { AnalysisStateService } from '../analysis-state.service';
 import { AuthService } from '../shared/auth.service';
 import { ProfileService } from '../profile/profile.service';
 import { Dashboard } from './dashboard';
@@ -18,6 +20,13 @@ describe('Dashboard', () => {
           provide: AuthService,
           useValue: {
             isAuthenticated: () => false,
+          },
+        },
+        {
+          provide: AnalysisStateService,
+          useValue: {
+            history$: of([]),
+            loadAuthenticatedHistory: () => undefined,
           },
         },
         {
