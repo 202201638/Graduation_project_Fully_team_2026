@@ -41,8 +41,18 @@ def build_yolo_dataset(df):
         os.makedirs(os.path.join(OUTPUT_DIR, split, "images"), exist_ok=True)
         os.makedirs(os.path.join(OUTPUT_DIR, split, "labels"), exist_ok=True)
 
+    # original image dimensions (PNGs are stored already resized to IMG_SIZE; boxes
+    # are scaled using these originals). Falls back to the PNG's own size if absent.
+    dims = {}
+    for dims_path in (os.path.join(PNG_DIR, "image_dims.json"),
+                      os.path.join(ARTIFACT_DIR, "image_dims.json")):
+        if os.path.exists(dims_path):
+            with open(dims_path, "r", encoding="utf-8") as f:
+                dims = json.load(f)
+            break
+
     # patients that have png images
-    png_files = os.listdir(PNG_DIR)
+    png_files = [f for f in os.listdir(PNG_DIR) if f.endswith(".png")]
     png_patient_ids = set(f.replace(".png", "") for f in png_files)
 
     patients = df["patientId"].unique()
@@ -96,10 +106,13 @@ def build_yolo_dataset(df):
                 continue
 
             if img.ndim == 2:
-                h, w = img.shape
                 img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+
+            # original dimensions for box scaling (PNG may already be resized to IMG_SIZE)
+            if patient_id in dims:
+                h, w = dims[patient_id]
             else:
-                h, w, _ = img.shape
+                h, w = img.shape[:2]
 
             boxes_df = split_df[split_df["patientId"] == patient_id]
 

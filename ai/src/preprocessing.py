@@ -5,7 +5,12 @@ import pydicom
 import numpy as np
 from tqdm import tqdm
 
-from src.config import ARTIFACT_DIR, INPUT_DIR, PNG_DIR, MAX_IMAGES, SEED
+from src.config import ARTIFACT_DIR, INPUT_DIR, PNG_DIR, MAX_IMAGES, SEED, IMG_SIZE
+
+# Map of patientId -> [original_height, original_width], written alongside the PNGs.
+# PNGs are saved already resized to IMG_SIZE to save disk; the YOLO build uses these
+# original dimensions to scale the bounding boxes correctly.
+DIMS_FILENAME = "image_dims.json"
 
 
 # Single CLAHE instance reused for every image. Applying contrast enhancement
@@ -69,10 +74,12 @@ def convert_dicom_to_png(df=None, max_images=MAX_IMAGES, seed: int = SEED):
         "output_dir": PNG_DIR,
         "total_candidates": len(files),
         "max_images": max_images,
+        "img_size": IMG_SIZE,
         "stratified": bool(df is not None and max_images is not None),
         "converted": 0,
         "skipped_corrupt": 0,
     }
+    dims = {}
 
     for file in tqdm(files, desc="Converting DICOM to PNG"):
 
@@ -91,13 +98,23 @@ def convert_dicom_to_png(df=None, max_images=MAX_IMAGES, seed: int = SEED):
 
         img = _normalize_xray(img)
 
-        filename = file.replace(".dcm", ".png")
-        out_path = os.path.join(PNG_DIR, filename)
+        # record original dimensions, then save a resized PNG to keep disk usage low
+        orig_h, orig_w = img.shape[:2]
+        patient_id = file.replace(".dcm", "")
+        dims[patient_id] = [int(orig_h), int(orig_w)]
+        img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
 
+        out_path = os.path.join(PNG_DIR, f"{patient_id}.png")
         cv2.imwrite(out_path, img)
         summary["converted"] += 1
 
     os.makedirs(ARTIFACT_DIR, exist_ok=True)
+    with open(os.path.join(ARTIFACT_DIR, DIMS_FILENAME), "w", encoding="utf-8") as f:
+        json.dump(dims, f)
+    # keep a copy next to the PNGs too, so the build step can find it regardless of paths
+    with open(os.path.join(PNG_DIR, DIMS_FILENAME), "w", encoding="utf-8") as f:
+        json.dump(dims, f)
+
     summary_path = os.path.join(ARTIFACT_DIR, "phase1_conversion_summary.json")
     with open(summary_path, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
