@@ -24,8 +24,13 @@ def _write_yolo_data_yaml(output_dir: str):
         f.write("\n".join(lines))
 
 
-def build_yolo_dataset(df):
+def build_yolo_dataset(df, free_source: bool = True):
     """Build a train/val/test YOLO dataset from the converted PNGs.
+
+    `free_source=True` deletes each source PNG immediately after it has been copied
+    into the YOLO dataset, so only one copy of the images exists on disk at a time
+    (keeps Kaggle's ~20GB working space from overflowing on the full dataset).
+
 
     Preprocessing is identical for every image regardless of class: resize to
     IMG_SIZE and scale boxes. NO class-conditional augmentation is applied here
@@ -139,6 +144,13 @@ def build_yolo_dataset(df):
             out_img = os.path.join(OUTPUT_DIR, split, "images", f"{patient_id}.png")
             cv2.imwrite(out_img, img_resized)
             out_label = os.path.join(OUTPUT_DIR, split, "labels", f"{patient_id}.txt")
+
+            # free the source PNG now that its YOLO copy is written (one copy on disk)
+            if free_source and os.path.abspath(img_path) != os.path.abspath(out_img):
+                try:
+                    os.remove(img_path)
+                except OSError:
+                    pass
 
             if not bboxes:
                 # negative example: image + empty label file
