@@ -1,3 +1,10 @@
+"""Phase 4: nature-inspired hyperparameter optimization for ALL six models.
+
+Each candidate is scored with a fast PROXY (few epochs / capped batches / data
+fraction) so the search fits a Kaggle session, then the winning hyperparameters
+are used for full retraining in Phase 5. PSO, GWO and SA are all run so the thesis
+can compare the algorithms; the best across them is kept.
+"""
 import json
 import os
 from typing import Callable, Dict, List, Tuple
@@ -18,6 +25,35 @@ from src.optimization.algorithms import (
 
 BEST_PARAMS_PATH = os.path.join(ARTIFACT_DIR, "phase4_best_hyperparameters.json")
 
+CLASSIFICATION_MODELS = {"resnet50", "densenet121", "efficientnet_b0"}
+DETECTION_MODELS = {"yolo", "fasterrcnn", "retinanet"}
+
+# Per-model search spaces
+_SEARCH_SPACES: Dict[str, List[SearchDimension]] = {
+    "yolo": [
+        SearchDimension("lr", 1e-4, 5e-3, "float"),
+        SearchDimension("batch_size", 8, 24, "int"),
+        SearchDimension("weight_decay", 1e-5, 5e-3, "float"),
+        SearchDimension("anchor_size", 8, 32, "int"),
+    ],
+    "fasterrcnn": [
+        SearchDimension("lr", 5e-4, 1e-2, "float"),
+        SearchDimension("batch_size", 2, 6, "int"),
+        SearchDimension("weight_decay", 1e-5, 5e-3, "float"),
+    ],
+    "retinanet": [
+        SearchDimension("lr", 5e-4, 1e-2, "float"),
+        SearchDimension("batch_size", 2, 6, "int"),
+        SearchDimension("weight_decay", 1e-5, 5e-3, "float"),
+    ],
+}
+_CLS_SPACE = [
+    SearchDimension("lr", 1e-5, 1e-3, "float"),
+    SearchDimension("batch_size", 16, 48, "int"),
+    SearchDimension("dropout", 0.1, 0.6, "float"),
+    SearchDimension("weight_decay", 1e-7, 1e-2, "float"),
+]
+
 
 def _save_json(path: str, data: Dict):
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -25,71 +61,73 @@ def _save_json(path: str, data: Dict):
         json.dump(data, f, indent=2)
 
 
-def _evaluate_detection_model(model_name: str, params: Dict[str, float], quick_epochs: int) -> float:
+def _load_json(path: str) -> Dict:
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _proxy_score_classification(model_name: str, params: Dict[str, float], quick_epochs: int, eval_batches: int) -> float:
+    trainers = {
+        "resnet50": train_resnet,
+        "densenet121": train_densenet,
+        "efficientnet_b0": train_efficientnet,
+    }
+    try:
+        metrics = trainers[model_name](
+            epochs=quick_epochs,
+            lr=float(params["lr"]),
+            batch_size=int(params["batch_size"]),
+            dropout=float(params["dropout"]),
+            weight_decay=float(params["weight_decay"]),
+            checkpoint_path=None,        # proxy: do not overwrite real checkpoint
+            eval_on_test=False,          # proxy: score on val
+            max_eval_batches=eval_batches,
+        )
+        return float(metrics.get("auc", 0.0))
+    except Exception as exc:
+        print(f"[Phase4] {model_name} candidate failed {params}: {exc}", flush=True)
+        return 0.0
+
+
+def _proxy_score_detection(
+    model_name: str, params: Dict[str, float], quick_epochs: int, train_batches: int, eval_batches: int, fraction: float
+) -> float:
     try:
         if model_name == "yolo":
             metrics = train_yolo(
-                epochs=quick_epochs,
+                epochs=max(2, quick_epochs + 1),
                 lr=float(params["lr"]),
                 batch_size=int(params["batch_size"]),
                 weight_decay=float(params["weight_decay"]),
                 anchor_size=int(params["anchor_size"]),
-                run_name=f"phase4_{model_name}",
+                patience=max(2, quick_epochs + 1),
+                fraction=fraction,
+                eval_test=False,
+                run_name="phase4_yolo",
             )
             return float(metrics.get("map50", 0.0))
-        if model_name == "fasterrcnn":
-            metrics = train_fasterrcnn(
-                epochs=quick_epochs,
-                lr=float(params["lr"]),
-                batch_size=int(params["batch_size"]),
-                weight_decay=float(params["weight_decay"]),
-            )
-            return float(metrics.get("recall", 0.0))
-        if model_name == "retinanet":
-            metrics = train_retinanet(
-                epochs=quick_epochs,
-                lr=float(params["lr"]),
-                batch_size=int(params["batch_size"]),
-                weight_decay=float(params["weight_decay"]),
-            )
-            return float(metrics.get("recall", 0.0))
-        raise ValueError(f"Unknown detection model {model_name}")
-    except Exception as exc:
-        print(f"[Phase4] detection eval failed for {model_name} with {params}: {exc}")
-        return 0.0
 
-
-def _evaluate_classification_model(model_name: str, params: Dict[str, float], quick_epochs: int) -> float:
-    try:
-        if model_name == "resnet50":
-            metrics = train_resnet(
-                epochs=quick_epochs,
-                lr=float(params["lr"]),
-                batch_size=int(params["batch_size"]),
-                dropout=float(params["dropout"]),
-                weight_decay=float(params["weight_decay"]),
-            )
-        elif model_name == "densenet121":
-            metrics = train_densenet(
-                epochs=quick_epochs,
-                lr=float(params["lr"]),
-                batch_size=int(params["batch_size"]),
-                dropout=float(params["dropout"]),
-                weight_decay=float(params["weight_decay"]),
-            )
-        elif model_name == "efficientnet_b0":
-            metrics = train_efficientnet(
-                epochs=quick_epochs,
-                lr=float(params["lr"]),
-                batch_size=int(params["batch_size"]),
-                dropout=float(params["dropout"]),
-                weight_decay=float(params["weight_decay"]),
-            )
-        else:
-            raise ValueError(f"Unknown classification model {model_name}")
-        return float(metrics.get("auc", 0.0))
+        trainer = train_fasterrcnn if model_name == "fasterrcnn" else train_retinanet
+        metrics = trainer(
+            epochs=quick_epochs,
+            lr=float(params["lr"]),
+            batch_size=int(params["batch_size"]),
+            weight_decay=float(params["weight_decay"]),
+            checkpoint_path=None,        # proxy: no checkpoint
+            freeze_epochs=0,             # proxy: let everything move quickly
+            eval_on_test=False,
+            max_train_batches=train_batches,
+            max_eval_batches=eval_batches,
+        )
+        score = float(metrics.get("map50", 0.0))
+        return score if score > 0 else float(metrics.get("recall", 0.0))
     except Exception as exc:
-        print(f"[Phase4] classification eval failed for {model_name} with {params}: {exc}")
+        print(f"[Phase4] {model_name} candidate failed {params}: {exc}", flush=True)
         return 0.0
 
 
@@ -98,14 +136,8 @@ def _run_all_algorithms(
     dims: List[SearchDimension],
     population: int,
     iterations: int,
-) -> Tuple[Dict[str, float], float, Dict[str, Dict[str, float]]]:
-    """
-    Fast optimization set:
-    - PSO
-    - GWO
-    - SA
-    """
-    algo_results = {}
+) -> Tuple[Dict[str, float], float, Dict[str, Dict]]:
+    algo_results: Dict[str, Dict] = {}
 
     best_params, best_score = pso_optimize(objective, dims, population=population, iterations=iterations)
     algo_results["PSO"] = {"best_params": best_params, "best_score": best_score}
@@ -115,7 +147,7 @@ def _run_all_algorithms(
     if score > best_score:
         best_params, best_score = params, score
 
-    params, score = sa_optimize(objective, dims, iterations=max(10, population * iterations))
+    params, score = sa_optimize(objective, dims, iterations=max(8, population * iterations))
     algo_results["SA"] = {"best_params": params, "best_score": score}
     if score > best_score:
         best_params, best_score = params, score
@@ -123,71 +155,77 @@ def _run_all_algorithms(
     return best_params, best_score, algo_results
 
 
-def run_phase4_optimization(quick_epochs: int = 1, population: int = 4, iterations: int = 2):
-    print("Phase 4: Nature-Inspired Hyperparameter Optimization")
-    all_results: Dict[str, Dict] = {"_errors": {}}
+def optimize_model(
+    model_name: str,
+    population: int = 3,
+    iterations: int = 2,
+    quick_epochs: int = 1,
+    train_batches: int = 60,
+    eval_batches: int = 30,
+    yolo_fraction: float = 0.15,
+) -> Dict:
+    """Run PSO/GWO/SA for a single model and persist the best hyperparameters.
+    Returns the result record for this model."""
+    print(f"Phase 4: optimizing {model_name} (population={population}, iterations={iterations}, proxy_epochs={quick_epochs})", flush=True)
 
-    # Optimized models (fast runtime set, 3 models only):
-    # 1) YOLO (for final demo + detection)
-    # 2) ResNet50
-    # 3) EfficientNet-B0
-    # Detection model (include anchor_size tuning for YOLO)
-    detection_dims_yolo = [
-        SearchDimension("lr", 1e-5, 5e-3, "float"),
-        SearchDimension("batch_size", 2, 16, "int"),
-        SearchDimension("weight_decay", 1e-6, 1e-2, "float"),
-        SearchDimension("anchor_size", 8, 64, "int"),
-    ]
-    yolo_objective = lambda p: _evaluate_detection_model("yolo", p, quick_epochs=quick_epochs)
-    try:
-        best_params, best_score, algo_results = _run_all_algorithms(
-            objective=yolo_objective,
-            dims=detection_dims_yolo,
-            population=population,
-            iterations=iterations,
+    is_classification = model_name in CLASSIFICATION_MODELS
+    dims = _CLS_SPACE if is_classification else _SEARCH_SPACES[model_name]
+
+    if is_classification:
+        objective = lambda p, m=model_name: _proxy_score_classification(m, p, quick_epochs, eval_batches)
+        score_name = "auc"
+        task = "classification"
+    else:
+        objective = lambda p, m=model_name: _proxy_score_detection(
+            m, p, quick_epochs, train_batches, eval_batches, yolo_fraction
         )
-        all_results["yolo"] = {
-            "task": "detection",
-            "score_name": "map50",
-            "best_score": best_score,
-            "best_hyperparameters": best_params,
-            "algorithms": algo_results,
-        }
-        print(f"[Phase4] yolo best score={best_score:.4f} with {best_params}")
-    except Exception as exc:
-        all_results["_errors"]["yolo"] = str(exc)
-        print(f"[Phase4] yolo optimization failed: {exc}")
-    _save_json(BEST_PARAMS_PATH, all_results)
+        score_name = "map50"
+        task = "detection"
 
-    # Classification models (optimize dropout too)
-    cls_dims = [
-        SearchDimension("lr", 1e-5, 1e-3, "float"),
-        SearchDimension("batch_size", 4, 32, "int"),
-        SearchDimension("dropout", 0.1, 0.6, "float"),
-        SearchDimension("weight_decay", 1e-7, 1e-2, "float"),
-    ]
-    for cls_model in ["resnet50", "efficientnet_b0"]:
-        objective = lambda p, m=cls_model: _evaluate_classification_model(m, p, quick_epochs=quick_epochs)
+    best_params, best_score, algo_results = _run_all_algorithms(objective, dims, population, iterations)
+    record = {
+        "task": task,
+        "score_name": score_name,
+        "best_score": best_score,
+        "best_hyperparameters": best_params,
+        "algorithms": algo_results,
+        "search_budget": {
+            "population": population,
+            "iterations": iterations,
+            "proxy_epochs": quick_epochs,
+            "proxy_train_batches": None if is_classification else train_batches,
+            "proxy_eval_batches": eval_batches,
+            "yolo_fraction": yolo_fraction if model_name == "yolo" else None,
+        },
+    }
+
+    all_results = _load_json(BEST_PARAMS_PATH)
+    if "_errors" not in all_results:
+        all_results["_errors"] = {}
+    all_results[model_name] = record
+    _save_json(BEST_PARAMS_PATH, all_results)
+    print(f"[Phase4] {model_name} best {score_name}={best_score:.4f} with {best_params}", flush=True)
+    return record
+
+
+def run_phase4_optimization(
+    models: List[str] = None,
+    population: int = 3,
+    iterations: int = 2,
+    quick_epochs: int = 1,
+) -> Dict:
+    """Optimize the given models (default: all six)."""
+    if models is None:
+        models = ["yolo", "fasterrcnn", "retinanet", "resnet50", "densenet121", "efficientnet_b0"]
+
+    for model_name in models:
         try:
-            best_params, best_score, algo_results = _run_all_algorithms(
-                objective=objective,
-                dims=cls_dims,
-                population=population,
-                iterations=iterations,
-            )
-            all_results[cls_model] = {
-                "task": "classification",
-                "score_name": "auc",
-                "best_score": best_score,
-                "best_hyperparameters": best_params,
-                "algorithms": algo_results,
-            }
-            print(f"[Phase4] {cls_model} best score={best_score:.4f} with {best_params}")
+            optimize_model(model_name, population=population, iterations=iterations, quick_epochs=quick_epochs)
         except Exception as exc:
-            all_results["_errors"][cls_model] = str(exc)
-            print(f"[Phase4] {cls_model} optimization failed: {exc}")
-        _save_json(BEST_PARAMS_PATH, all_results)
+            all_results = _load_json(BEST_PARAMS_PATH)
+            all_results.setdefault("_errors", {})[model_name] = str(exc)
+            _save_json(BEST_PARAMS_PATH, all_results)
+            print(f"[Phase4] {model_name} optimization failed: {exc}", flush=True)
 
-    _save_json(BEST_PARAMS_PATH, all_results)
     print(f"Phase 4 results saved to {BEST_PARAMS_PATH}")
-    return all_results
+    return _load_json(BEST_PARAMS_PATH)

@@ -57,6 +57,19 @@ DEFAULT_YOLO_WEIGHTS = os.fspath(
     )
 )
 
-IMG_SIZE = 640
-MAX_IMAGES = 12000
+IMG_SIZE = 640            # detection input size (YOLO / Faster R-CNN / RetinaNet)
+CLS_IMG_SIZE = 224        # classification input size (standard for ImageNet backbones)
+
+# ImageNet normalization. Models are ImageNet-pretrained, and the backend serves
+# classifiers with these stats, so training must match (train/serve parity).
+IMAGENET_MEAN = (0.485, 0.456, 0.406)
+IMAGENET_STD = (0.229, 0.224, 0.225)
+
+# Global seed for reproducible splits / sampling.
+SEED = 42
+
+# None => use the full dataset (~26,684 images, recommended). Set an int (e.g. 18000)
+# to cap with a stratified, seeded patient-level sample. Overridable via MAX_IMAGES env.
+_max_images_env = os.getenv("MAX_IMAGES")
+MAX_IMAGES = int(_max_images_env) if _max_images_env else None
 

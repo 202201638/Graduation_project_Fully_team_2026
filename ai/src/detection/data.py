@@ -1,4 +1,5 @@
 import os
+import random
 from typing import List, Tuple, Dict
 
 import cv2
@@ -11,6 +12,7 @@ from src.config import YOLO_DATASET_DIR, IMG_SIZE
 class YoloDetectionDataset(Dataset):
     def __init__(self, split: str = "train"):
         self.split = split
+        self.is_train = split == "train"
         self.img_dir = os.path.join(YOLO_DATASET_DIR, split, "images")
         self.label_dir = os.path.join(YOLO_DATASET_DIR, split, "labels")
 
@@ -66,6 +68,22 @@ class YoloDetectionDataset(Dataset):
         labels_tensor = torch.tensor(labels, dtype=torch.int64)
         return boxes_tensor, labels_tensor
 
+    def _augment(self, img_tensor: torch.Tensor, boxes: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        # Box-aware horizontal flip
+        if random.random() < 0.5:
+            img_tensor = torch.flip(img_tensor, dims=[2])  # flip width
+            if boxes.numel() > 0:
+                w = img_tensor.shape[2]
+                x1 = boxes[:, 0].clone()
+                x2 = boxes[:, 2].clone()
+                boxes[:, 0] = w - x2
+                boxes[:, 2] = w - x1
+        # Photometric jitter (does not affect boxes)
+        contrast = random.uniform(0.85, 1.15)
+        brightness = random.uniform(-0.1, 0.1)
+        img_tensor = (img_tensor * contrast + brightness).clamp(0.0, 1.0)
+        return img_tensor, boxes
+
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         img_file = self.image_files[idx]
         img_path = os.path.join(self.img_dir, img_file)
@@ -75,7 +93,6 @@ class YoloDetectionDataset(Dataset):
         if img is None:
             raise RuntimeError(f"Failed to read image {img_path}")
 
-        h, w = img.shape[:2]
         if img.ndim == 2:
             img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
         else:
@@ -85,6 +102,9 @@ class YoloDetectionDataset(Dataset):
         img_tensor = torch.from_numpy(img).permute(2, 0, 1).float() / 255.0
 
         boxes, labels = self._load_labels(label_path, IMG_SIZE, IMG_SIZE)
+
+        if self.is_train:
+            img_tensor, boxes = self._augment(img_tensor, boxes)
 
         target: Dict[str, torch.Tensor] = {
             "boxes": boxes,
@@ -108,27 +128,26 @@ def _collate_fn(batch):
     return list(images), list(targets)
 
 
+def _make_loader(split: str, batch_size: int, num_workers: int) -> DataLoader:
+    dataset = YoloDetectionDataset(split=split)
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=(split == "train"),
+        num_workers=num_workers,
+        collate_fn=_collate_fn,
+        pin_memory=torch.cuda.is_available(),
+    )
+
+
 def create_dataloaders(
     batch_size: int = 4, num_workers: int = 2
 ) -> Tuple[DataLoader, DataLoader]:
-    train_dataset = YoloDetectionDataset(split="train")
-    val_dataset = YoloDetectionDataset(split="val")
-
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=num_workers,
-        collate_fn=_collate_fn,
+    return (
+        _make_loader("train", batch_size, num_workers),
+        _make_loader("val", batch_size, num_workers),
     )
 
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=num_workers,
-        collate_fn=_collate_fn,
-    )
 
-    return train_loader, val_loader
-
+def create_detection_test_loader(batch_size: int = 4, num_workers: int = 2) -> DataLoader:
+    return _make_loader("test", batch_size, num_workers)

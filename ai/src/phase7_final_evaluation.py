@@ -33,11 +33,10 @@ def _metric_for(model_name: str, record: Dict) -> Optional[float]:
     if isinstance(record, dict) and record.get("status") == "failed":
         return None
     try:
-        if model_name == "yolo":
+        if model_name in {"yolo", "fasterrcnn", "retinanet"}:
             raw = record.get("map50")
-            return float(raw) if raw is not None else None
-        if model_name in {"fasterrcnn", "retinanet"}:
-            raw = record.get("recall")
+            if raw is None:
+                raw = record.get("recall")
             return float(raw) if raw is not None else None
         raw = record.get("auc")
         return float(raw) if raw is not None else None
@@ -57,7 +56,7 @@ def run_phase7_final_evaluation():
     for m in models:
         before = _metric_for(m, baseline.get(m, {}))
         after = _metric_for(m, retrain.get(m, {}))
-        metric = "mAP@0.5" if m == "yolo" else ("Recall" if m in {"fasterrcnn", "retinanet"} else "AUC")
+        metric = "mAP@0.5" if m in {"yolo", "fasterrcnn", "retinanet"} else "AUC"
         rows.append(Row(model=m, before=before, after=after, metric=metric))
 
     print("| Model | Metric | Before Optimization | After Optimization |")

@@ -1,13 +1,11 @@
 import os
 import json
 import cv2
-import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
-import albumentations as A
 
-from src.config import ARTIFACT_DIR, PNG_DIR, YOLO_DATASET_DIR, IMG_SIZE
+from src.config import ARTIFACT_DIR, PNG_DIR, YOLO_DATASET_DIR, IMG_SIZE, SEED
 
 
 def _write_yolo_data_yaml(output_dir: str):
@@ -27,66 +25,73 @@ def _write_yolo_data_yaml(output_dir: str):
 
 
 def build_yolo_dataset(df):
+    """Build a train/val/test YOLO dataset from the converted PNGs.
+
+    Preprocessing is identical for every image regardless of class: resize to
+    IMG_SIZE and scale boxes. NO class-conditional augmentation is applied here
+    (that previously leaked the label via a CLAHE contrast signature). Real,
+    on-the-fly augmentation is applied to the train split during training only.
+    """
 
     OUTPUT_DIR = YOLO_DATASET_DIR
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    for split in ["train","val","test"]:
-        os.makedirs(os.path.join(OUTPUT_DIR,split,"images"),exist_ok=True)
-        os.makedirs(os.path.join(OUTPUT_DIR,split,"labels"),exist_ok=True)
+    for split in ["train", "val", "test"]:
+        os.makedirs(os.path.join(OUTPUT_DIR, split, "images"), exist_ok=True)
+        os.makedirs(os.path.join(OUTPUT_DIR, split, "labels"), exist_ok=True)
 
     # patients that have png images
     png_files = os.listdir(PNG_DIR)
-    png_patient_ids = [f.replace(".png","") for f in png_files]
+    png_patient_ids = set(f.replace(".png", "") for f in png_files)
 
     patients = df["patientId"].unique()
     patients = [p for p in patients if p in png_patient_ids]
 
-    if len(patients)==0:
+    if len(patients) == 0:
         raise ValueError("No PNG images found")
 
     df = df[df["patientId"].isin(patients)]
 
-    # patient-wise split
-    train_ids,temp_ids = train_test_split(patients,test_size=0.4,random_state=42)
-    val_ids,test_ids = train_test_split(temp_ids,test_size=0.5,random_state=42)
+    # patient-level labels for a stratified, leak-free split
+    patient_labels = df.groupby("patientId")["Target"].max()
+    patients = list(patient_labels.index)
+    strat = patient_labels.to_numpy()
 
-    splits={
-        "train":train_ids,
-        "val":val_ids,
-        "test":test_ids
+    # patient-wise split: 60% train / 20% val / 20% test, stratified by label
+    train_ids, temp_ids, _, temp_strat = train_test_split(
+        patients, strat, test_size=0.4, random_state=SEED, stratify=strat
+    )
+    val_ids, test_ids = train_test_split(
+        temp_ids, test_size=0.5, random_state=SEED, stratify=temp_strat
+    )
+
+    splits = {
+        "train": train_ids,
+        "val": val_ids,
+        "test": test_ids,
     }
     summary = {
         "output_dir": OUTPUT_DIR,
         "total_patients_with_png": len(patients),
         "splits": {
-            "train": {"total_ids": len(train_ids), "saved_images": 0, "positive_labels": 0, "negative_labels": 0},
-            "val": {"total_ids": len(val_ids), "saved_images": 0, "positive_labels": 0, "negative_labels": 0},
-            "test": {"total_ids": len(test_ids), "saved_images": 0, "positive_labels": 0, "negative_labels": 0},
+            s: {"total_ids": len(ids), "saved_images": 0, "positive_labels": 0, "negative_labels": 0}
+            for s, ids in splits.items()
         },
     }
 
-    augmenter = A.Compose([
-        A.HorizontalFlip(p=0.5),
-        A.Rotate(limit=15,p=0.5),
-        A.CLAHE(clip_limit=2.0,p=1.0),
-        A.RandomBrightnessContrast(0.2,0.2,p=0.5),
-        A.RandomScale(0.1,p=0.5)
-    ],bbox_params=A.BboxParams(format="pascal_voc",label_fields=["class_labels"]))
+    for split, ids in splits.items():
 
-    for split,ids in splits.items():
+        split_df = df[df["patientId"].isin(ids)]
 
-        split_df=df[df["patientId"].isin(ids)]
+        for patient_id in tqdm(ids, desc=f"Processing {split}"):
 
-        for patient_id in tqdm(ids,desc=f"Processing {split}"):
-
-            img_path=os.path.join(PNG_DIR,f"{patient_id}.png")
+            img_path = os.path.join(PNG_DIR, f"{patient_id}.png")
 
             if not os.path.exists(img_path):
                 continue
 
-            img=cv2.imread(img_path)
+            img = cv2.imread(img_path)
             if img is None:
                 continue
 
@@ -96,17 +101,15 @@ def build_yolo_dataset(df):
             else:
                 h, w, _ = img.shape
 
-            boxes_df=split_df[split_df["patientId"]==patient_id]
+            boxes_df = split_df[split_df["patientId"] == patient_id]
 
-            bboxes=[]
-            labels=[]
-
-            for _,row in boxes_df.iterrows():
-                if row["Target"]==1:
-                    x1=row["x"]
-                    y1=row["y"]
-                    x2=x1+row["width"]
-                    y2=y1+row["height"]
+            bboxes = []
+            for _, row in boxes_df.iterrows():
+                if row["Target"] == 1:
+                    x1 = row["x"]
+                    y1 = row["y"]
+                    x2 = x1 + row["width"]
+                    y2 = y1 + row["height"]
 
                     # clip to image bounds
                     x1 = max(0, min(x1, w - 1))
@@ -117,56 +120,39 @@ def build_yolo_dataset(df):
                     if x2 <= x1 or y2 <= y1:
                         continue
 
-                    bboxes.append([x1,y1,x2,y2])
-                    labels.append(0)  # single class 0 for pneumonia in YOLO format
+                    bboxes.append([x1, y1, x2, y2])
+
+            img_resized = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
+            out_img = os.path.join(OUTPUT_DIR, split, "images", f"{patient_id}.png")
+            cv2.imwrite(out_img, img_resized)
+            out_label = os.path.join(OUTPUT_DIR, split, "labels", f"{patient_id}.txt")
 
             if not bboxes:
-                # negative example: save image and empty label file
-                img_resized = cv2.resize(img,(IMG_SIZE,IMG_SIZE))
-                out_img=os.path.join(OUTPUT_DIR,split,"images",f"{patient_id}.png")
-                cv2.imwrite(out_img,img_resized)
-
-                out_label=os.path.join(OUTPUT_DIR,split,"labels",f"{patient_id}.txt")
-                open(out_label,"w").close()
+                # negative example: image + empty label file
+                open(out_label, "w").close()
                 summary["splits"][split]["saved_images"] += 1
                 summary["splits"][split]["negative_labels"] += 1
                 continue
 
-            augmented=augmenter(image=img,bboxes=bboxes,class_labels=labels)
+            scale_x = IMG_SIZE / w
+            scale_y = IMG_SIZE / h
 
-            img=augmented["image"]
-            bboxes=augmented["bboxes"]
-            labels=augmented["class_labels"]
+            yolo_lines = []
+            for x1, y1, x2, y2 in bboxes:
+                x1 *= scale_x
+                x2 *= scale_x
+                y1 *= scale_y
+                y2 *= scale_y
 
-            img=cv2.resize(img,(IMG_SIZE,IMG_SIZE))
+                x_center = ((x1 + x2) / 2) / IMG_SIZE
+                y_center = ((y1 + y2) / 2) / IMG_SIZE
+                bw = (x2 - x1) / IMG_SIZE
+                bh = (y2 - y1) / IMG_SIZE
 
-            scale_x=IMG_SIZE/w
-            scale_y=IMG_SIZE/h
+                # single class 0 = pneumonia
+                yolo_lines.append(f"0 {x_center} {y_center} {bw} {bh}")
 
-            yolo_lines=[]
-
-            for bbox,cls in zip(bboxes,labels):
-
-                x1,y1,x2,y2=bbox
-
-                x1*=scale_x
-                x2*=scale_x
-                y1*=scale_y
-                y2*=scale_y
-
-                x_center=((x1+x2)/2)/IMG_SIZE
-                y_center=((y1+y2)/2)/IMG_SIZE
-                bw=(x2-x1)/IMG_SIZE
-                bh=(y2-y1)/IMG_SIZE
-
-                yolo_lines.append(f"{int(cls)} {x_center} {y_center} {bw} {bh}")
-
-            out_img=os.path.join(OUTPUT_DIR,split,"images",f"{patient_id}.png")
-            cv2.imwrite(out_img,img)
-
-            out_label=os.path.join(OUTPUT_DIR,split,"labels",f"{patient_id}.txt")
-
-            with open(out_label,"w") as f:
+            with open(out_label, "w") as f:
                 f.write("\n".join(yolo_lines))
             summary["splits"][split]["saved_images"] += 1
             summary["splits"][split]["positive_labels"] += 1
