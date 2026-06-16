@@ -1,17 +1,22 @@
 {
   "_dataset": "RSNA Pneumonia Detection Challenge",
   "_eval_split": "held-out test split (20%, patient-wise stratified, seed 42)",
-  "_note": "Deployed (validation-best) leak-free test metrics per model. Mirrors model_metrics.json.",
+  "_test_counts": { "negative": 4135, "positive": 1202 },
+  "_note": "Honest, leak-free metrics for the deployed (validation-best) checkpoint of each model. Classifiers report AUC/sensitivity/specificity; detectors report mAP@0.5 / mAP@[0.5:0.95] / recall.",
   "resnet50": {
     "family": "classification",
     "selected_checkpoint": "optimized",
     "accuracy": 0.8100,
     "precision": 0.5572,
     "recall": 0.7612,
+    "sensitivity": 0.7612,
     "specificity": 0.8242,
     "f1": 0.6435,
     "auc": 0.8840,
-    "num_parameters": 23512130
+    "num_parameters": 23512130,
+    "confusion_matrix": [[3408, 727], [287, 915]],
+    "input_size": 224,
+    "eval_split": "test"
   },
   "densenet121": {
     "family": "classification",
@@ -19,10 +24,14 @@
     "accuracy": 0.8019,
     "precision": 0.5416,
     "recall": 0.7854,
+    "sensitivity": 0.7854,
     "specificity": 0.8068,
     "f1": 0.6411,
     "auc": 0.8832,
-    "num_parameters": 6955906
+    "num_parameters": 6955906,
+    "confusion_matrix": [[3336, 799], [258, 944]],
+    "input_size": 224,
+    "eval_split": "test"
   },
   "efficientnet_b0": {
     "family": "classification",
@@ -30,10 +39,14 @@
     "accuracy": 0.8151,
     "precision": 0.5662,
     "recall": 0.7654,
+    "sensitivity": 0.7654,
     "specificity": 0.8295,
     "f1": 0.6509,
     "auc": 0.8855,
-    "num_parameters": 4010110
+    "num_parameters": 4010110,
+    "confusion_matrix": [[3430, 705], [282, 920]],
+    "input_size": 224,
+    "eval_split": "test"
   },
   "yolo": {
     "family": "detection",
@@ -42,7 +55,9 @@
     "map": 0.1380,
     "recall": 0.3823,
     "precision": 0.3960,
-    "num_parameters": 3005843
+    "num_parameters": 3005843,
+    "input_size": 640,
+    "eval_split": "test"
   },
   "fasterrcnn": {
     "family": "detection",
@@ -50,6 +65,8 @@
     "map50": 0.3815,
     "map": 0.1245,
     "recall": 0.8123,
-    "num_parameters": 41299161
+    "num_parameters": 41299161,
+    "input_size": 640,
+    "eval_split": "test"
   }
 }

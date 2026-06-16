@@ -30,12 +30,13 @@
       "default_conf": 0.1,
       "confirmed_conf": 0.25
     },
-    "retinanet": {
-      "display_name": "RetinaNet",
-      "model_type": "torchvision_retinanet_detection",
+    "yolo11": {
+      "display_name": "YOLO11m",
+      "model_type": "ultralytics_yolo_detection",
       "task": "pneumonia_detection",
-      "weights_file": "retinanet.pt",
+      "weights_file": "yolo11_best.pt",
       "class_names": ["pneumonia"],
+      "default_imgsz": 640,
       "default_conf": 0.1,
       "confirmed_conf": 0.25
     },
@@ -74,7 +75,7 @@
   "handoff_files": [
     "demo_output.png",
     "fasterrcnn.pt",
-    "retinanet.pt",
+    "yolo11_best.pt",
     "resnet50.pt",
     "densenet121.pt",
     "efficientnet_b0.pt",

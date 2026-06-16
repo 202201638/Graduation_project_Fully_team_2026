@@ -30,7 +30,7 @@ Detection models can localize likely pneumonia regions and render boxes:
 
 - `fasterrcnn`
 - `yolo`
-- `retinanet`
+- `yolo11`
 
 Classification models only return whole-image probabilities and cannot draw pneumonia regions:
 
@@ -49,7 +49,7 @@ Required deployable model assets in `Backend/model_assets`:
 Optional but supported assets:
 
 - `yolo_best.pt`
-- `retinanet.pt`
+- `yolo11_best.pt`
 - `resnet50.pt`
 - `densenet121.pt`
 - `efficientnet_b0.pt`

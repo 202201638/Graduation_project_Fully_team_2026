@@ -54,6 +54,8 @@ DiagnosisStatus = Literal[
 ]
 
 class AnalysisResult(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     pneumonia_detected: bool
     suspected_pneumonia: bool = False
     diagnosis_status: DiagnosisStatus = "no_pneumonia_detected"
@@ -64,6 +66,8 @@ class AnalysisResult(BaseModel):
     detections: List[DetectionPrediction] = Field(default_factory=list)
     original_image_url: Optional[str] = None
     rendered_image_url: Optional[str] = None
+    heatmap_image_url: Optional[str] = None
+    model_metrics: Dict[str, Any] = Field(default_factory=dict)
 
 class XRayAnalysisInDB(XRayAnalysisBase):
     model_config = ConfigDict(

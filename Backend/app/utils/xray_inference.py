@@ -18,7 +18,7 @@ import torch.nn as nn
 from PIL import Image, UnidentifiedImageError
 from torchvision import transforms
 from torchvision.models import densenet121, efficientnet_b0, resnet50
-from torchvision.models.detection import fasterrcnn_resnet50_fpn, retinanet_resnet50_fpn
+from torchvision.models.detection import fasterrcnn_resnet50_fpn
 from torchvision.ops import nms
 from torchvision.transforms import functional as transforms_functional
 
@@ -50,9 +50,13 @@ ULTRALYTICS_CONFIG_DIR = BASE_DIR / ".ultralytics"
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff"}
 MAX_FILE_SIZE = _int_env("MAX_FILE_SIZE", 10 * 1024 * 1024)
-TORCH_DEVICE = "cpu"
+# Use the GPU automatically when a CUDA-enabled torch build is present; fall back to CPU.
+# Set XRAY_FORCE_CPU=1 to force CPU even when CUDA is available.
+TORCH_DEVICE = "cuda" if (torch.cuda.is_available() and os.getenv("XRAY_FORCE_CPU") != "1") else "cpu"
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
+# Grad-CAM heatmap weight when blending over the original X-ray (0..1).
+GRADCAM_BLEND_ALPHA = 0.40
 
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 RENDERED_DIR.mkdir(parents=True, exist_ok=True)
@@ -67,6 +71,8 @@ MODEL_FAMILY_CLASSIFICATION = "classification"
 DEFAULT_MODEL_KEY = "fasterrcnn"
 DETECTION_NMS_IOU_THRESHOLD = 0.30
 MAX_RENDERED_DETECTIONS = 3
+# Ultralytics YOLO-family models share one load + predict path.
+YOLO_MODEL_KEYS = {"yolo", "yolo11"}
 
 
 @dataclass(frozen=True)
@@ -111,17 +117,18 @@ MODEL_REGISTRY: dict[str, ModelCatalogSpec] = {
         confirmed_conf=0.25,
         description="Torchvision Faster R-CNN detector that returns pneumonia boxes.",
     ),
-    "retinanet": ModelCatalogSpec(
-        key="retinanet",
-        display_name="RetinaNet",
+    "yolo11": ModelCatalogSpec(
+        key="yolo11",
+        display_name="YOLO11m",
         family=MODEL_FAMILY_DETECTION,
-        model_type="torchvision_retinanet_detection",
+        model_type="ultralytics_yolo_detection",
         task="pneumonia_detection",
-        weights_file="retinanet.pt",
+        weights_file="yolo11_best.pt",
         class_names=("pneumonia",),
         default_conf=0.10,
         confirmed_conf=0.25,
-        description="Torchvision RetinaNet detector that returns pneumonia boxes.",
+        default_imgsz=640,
+        description="Ultralytics YOLO11m detector that returns pneumonia boxes.",
     ),
     "resnet50": ModelCatalogSpec(
         key="resnet50",
@@ -202,9 +209,25 @@ class XRayInferenceService:
             "baseline": "phase3_baseline_results.json",
             "web_result": "web_result.json",
             "demo_result": "phase8_demo_result.json",
+            "model_metrics": "model_metrics.json",
         }
         filename = mapping.get(key)
         return self._load_json_asset(filename) if filename else None
+
+    def _all_model_metrics(self) -> Dict[str, Any]:
+        """Per-model honest held-out test metrics for the deployed checkpoints.
+
+        Prefers model_metrics.json (the deployed/validation-best metrics); falls back to
+        the legacy phase3_baseline_results.json so older asset bundles still render.
+        """
+        metrics = self._load_json_asset("model_metrics.json")
+        if isinstance(metrics, dict) and metrics:
+            return metrics
+        return self.get_raw_metadata("baseline") or {}
+
+    def get_model_metrics(self, model_name: str) -> Dict[str, Any]:
+        entry = self._all_model_metrics().get(model_name)
+        return entry if isinstance(entry, dict) else {}
 
     def resolve_model_name(self, model_name: Optional[str] = None) -> str:
         requested_name = (
@@ -281,7 +304,7 @@ class XRayInferenceService:
             return None
 
     def _summarize_baseline(self) -> Dict[str, Any]:
-        baseline = self.get_raw_metadata("baseline") or {}
+        baseline = self._all_model_metrics()
         summary: Dict[str, Any] = {}
 
         for model_name in MODEL_REGISTRY:
@@ -296,26 +319,23 @@ class XRayInferenceService:
         model_name: str,
         metrics: Dict[str, Any],
     ) -> tuple[Optional[str], Optional[float], Optional[str], Optional[float]]:
-        if model_name == "yolo":
+        if model_name in {"yolo", "yolo11", "fasterrcnn"}:
             return (
-                "mAP50",
+                "mAP@0.5",
                 self._float_or_none(metrics.get("map50")),
                 "Recall",
                 self._float_or_none(metrics.get("recall")),
             )
 
-        if model_name in {"fasterrcnn", "retinanet"}:
-            return "Recall", self._float_or_none(metrics.get("recall")), None, None
-
         return (
-            "Accuracy",
-            self._float_or_none(metrics.get("accuracy")),
-            "F1",
-            self._float_or_none(metrics.get("f1")),
+            "AUC",
+            self._float_or_none(metrics.get("auc")),
+            "Sensitivity",
+            self._float_or_none(metrics.get("recall")),
         )
 
     def _build_available_models(self) -> list[Dict[str, Any]]:
-        baseline = self.get_raw_metadata("baseline") or {}
+        baseline = self._all_model_metrics()
         available_models: list[Dict[str, Any]] = []
 
         for model_name in MODEL_REGISTRY:
@@ -462,6 +482,92 @@ class XRayInferenceService:
             ]
         )
 
+    def _gradcam_target_layer(self, model, model_name: str):
+        """Last convolutional feature map to explain, per architecture."""
+        if model_name == "resnet50":
+            return model.layer4[-1]
+        if model_name == "densenet121":
+            return model.features[-2]
+        if model_name == "efficientnet_b0":
+            return model.features[-1]
+        return None
+
+    def _write_gradcam_overlay(
+        self,
+        cam: np.ndarray,
+        base_bgr: np.ndarray,
+        model_name: str,
+        saved_upload: SavedUpload,
+    ) -> str:
+        height, width = base_bgr.shape[:2]
+        cam_resized = cv2.resize(cam.astype(np.float32), (width, height))
+        heatmap = cv2.applyColorMap(np.uint8(255 * np.clip(cam_resized, 0.0, 1.0)), cv2.COLORMAP_JET)
+        overlay = cv2.addWeighted(
+            heatmap, GRADCAM_BLEND_ALPHA, base_bgr, 1.0 - GRADCAM_BLEND_ALPHA, 0.0
+        )
+        filename = f"{saved_upload.file_path.stem}_{model_name}_gradcam.png"
+        out_path = RENDERED_DIR / filename
+        if not cv2.imwrite(str(out_path), overlay):
+            raise RuntimeError("Failed to write Grad-CAM overlay image.")
+        return f"/uploads/rendered/{filename}"
+
+    def _classify_with_gradcam(
+        self,
+        model,
+        model_name: str,
+        input_tensor: "torch.Tensor",
+        base_bgr: np.ndarray,
+        saved_upload: SavedUpload,
+    ) -> tuple["torch.Tensor", Optional[str]]:
+        """One grad-enabled forward that yields both the softmax and a Grad-CAM overlay.
+
+        The CAM targets the pneumonia class (index 1) so the heatmap always shows the
+        regions that pushed the model toward a pneumonia decision. Returns
+        (detached_probabilities, heatmap_url). heatmap_url is None if no target layer.
+        """
+        target_layer = self._gradcam_target_layer(model, model_name)
+        activations: Dict[str, Any] = {}
+        gradients: Dict[str, Any] = {}
+
+        def _forward_hook(_module, _inputs, output):
+            activations["value"] = output
+
+        def _backward_hook(_module, _grad_in, grad_out):
+            gradients["value"] = grad_out[0]
+
+        handles = []
+        if target_layer is not None:
+            handles.append(target_layer.register_forward_hook(_forward_hook))
+            handles.append(target_layer.register_full_backward_hook(_backward_hook))
+
+        try:
+            model.zero_grad(set_to_none=True)
+            logits = model(input_tensor)
+            probabilities = torch.softmax(logits, dim=1)[0].detach()
+
+            heatmap_url: Optional[str] = None
+            if target_layer is not None:
+                score = logits[:, 1].sum()
+                score.backward()
+                acts = activations.get("value")
+                grads = gradients.get("value")
+                if acts is not None and grads is not None:
+                    weights = grads.detach().mean(dim=(2, 3), keepdim=True)
+                    cam = torch.relu((weights * acts.detach()).sum(dim=1, keepdim=True))[0, 0]
+                    cam = cam - cam.min()
+                    cam_max = float(cam.max())
+                    if cam_max > 0:
+                        cam = cam / cam_max
+                    heatmap_url = self._write_gradcam_overlay(
+                        cam.cpu().numpy(), base_bgr, model_name, saved_upload
+                    )
+        finally:
+            for handle in handles:
+                handle.remove()
+            model.zero_grad(set_to_none=True)
+
+        return probabilities, heatmap_url
+
     def _load_classification_model(self, model_name: str, weights_path: Path):
         if model_name == "resnet50":
             model = resnet50(weights=None)
@@ -489,8 +595,6 @@ class XRayInferenceService:
     def _load_detection_model(self, model_name: str, weights_path: Path):
         if model_name == "fasterrcnn":
             model = fasterrcnn_resnet50_fpn(weights=None, weights_backbone=None, num_classes=2)
-        elif model_name == "retinanet":
-            model = retinanet_resnet50_fpn(weights=None, weights_backbone=None, num_classes=2)
         else:
             raise RuntimeError(f"Unsupported detection model '{model_name}'.")
 
@@ -527,7 +631,7 @@ class XRayInferenceService:
                 return self._models[model_name]
 
             try:
-                if model_name == "yolo":
+                if model_name in YOLO_MODEL_KEYS:
                     model = self._load_yolo_model(weights_path)
                 elif config["family"] == MODEL_FAMILY_CLASSIFICATION:
                     model = self._load_classification_model(model_name, weights_path)
@@ -613,9 +717,15 @@ class XRayInferenceService:
         self,
         detections: list[dict[str, Any]],
         nms_iou_threshold: float = DETECTION_NMS_IOU_THRESHOLD,
+        apply_nms: bool = True,
     ) -> list[dict[str, Any]]:
         if not detections:
             return []
+
+        # Torchvision detectors (Faster R-CNN) already run NMS internally; a second
+        # pass here would merge valid adjacent regions. Only YOLO output needs this safety NMS.
+        if not apply_nms:
+            return sorted(detections, key=lambda item: item["confidence"], reverse=True)
 
         boxes = torch.tensor(
             [
@@ -793,9 +903,10 @@ class XRayInferenceService:
         return "No pneumonia detection was produced by the model. Continue with standard clinical review."
 
     def _predict_with_yolo(self, saved_upload: SavedUpload, config: Dict[str, Any]) -> Dict[str, Any]:
-        model = self._ensure_model_loaded("yolo")
+        model_key = config["key"]
+        model = self._ensure_model_loaded(model_key)
         if model is None:
-            raise RuntimeError(self._load_errors.get("yolo") or "Selected model is unavailable.")
+            raise RuntimeError(self._load_errors.get(model_key) or "Selected model is unavailable.")
 
         with self._model_lock:
             started_at = time.perf_counter()
@@ -803,6 +914,7 @@ class XRayInferenceService:
                 source=str(saved_upload.file_path),
                 conf=config["default_conf"],
                 imgsz=config.get("default_imgsz") or 640,
+                device=0 if TORCH_DEVICE == "cuda" else "cpu",
                 verbose=False,
             )
             processing_time = time.perf_counter() - started_at
@@ -857,7 +969,7 @@ class XRayInferenceService:
             config["display_name"],
             confidence_score,
         )
-        rendered_filename = self._save_rendered_image(rendered_image, saved_upload, "yolo")
+        rendered_filename = self._save_rendered_image(rendered_image, saved_upload, model_key)
 
         return {
             "confidence_score": confidence_score,
@@ -923,7 +1035,7 @@ class XRayInferenceService:
                     }
                 )
 
-        detections = self._postprocess_detections(detections)
+        detections = self._postprocess_detections(detections, apply_nms=False)
         confirmed_detections = [
             detection
             for detection in detections
@@ -980,11 +1092,19 @@ class XRayInferenceService:
         with Image.open(saved_upload.file_path) as pil_image:
             rgb_image = pil_image.convert("RGB")
         input_tensor = preprocess(rgb_image).unsqueeze(0).to(TORCH_DEVICE)
+        base_bgr = self._load_image_bgr(saved_upload)
 
-        with self._model_lock, torch.inference_mode():
+        heatmap_url: Optional[str] = None
+        with self._model_lock:
             started_at = time.perf_counter()
-            logits = model(input_tensor)
-            probabilities = torch.softmax(logits, dim=1)[0]
+            try:
+                probabilities, heatmap_url = self._classify_with_gradcam(
+                    model, model_name, input_tensor, base_bgr, saved_upload
+                )
+            except Exception as exc:  # explainability must never break the prediction
+                print(f"Grad-CAM failed for {model_name}: {exc}")
+                with torch.inference_mode():
+                    probabilities = torch.softmax(model(input_tensor), dim=1)[0]
             processing_time = time.perf_counter() - started_at
 
         pneumonia_probability = float(probabilities[-1].item())
@@ -995,9 +1115,8 @@ class XRayInferenceService:
             config["confirmed_conf"],
         )
 
-        rendered_image = self._load_image_bgr(saved_upload)
         rendered_image = self._draw_banner(
-            rendered_image,
+            base_bgr.copy(),
             config["display_name"],
             f"Pneumonia probability {pneumonia_probability * 100:.1f}% | Normal {normal_probability * 100:.1f}%",
             self._status_color(diagnosis_status),
@@ -1010,9 +1129,11 @@ class XRayInferenceService:
             "detections": [],
             "confirmed_detections_count": 0,
             "rendered_image_url": f"/uploads/rendered/{rendered_filename}",
+            "heatmap_image_url": heatmap_url,
             "analysis_extras": {
                 "pneumonia_probability": round(pneumonia_probability, 4),
                 "normal_probability": round(normal_probability, 4),
+                "explainability": "grad_cam" if heatmap_url else None,
             },
         }
 
@@ -1022,7 +1143,7 @@ class XRayInferenceService:
         model_name: str,
         config: Dict[str, Any],
     ) -> Dict[str, Any]:
-        if model_name == "yolo":
+        if model_name in YOLO_MODEL_KEYS:
             return self._predict_with_yolo(saved_upload, config)
 
         if config["family"] == MODEL_FAMILY_CLASSIFICATION:
@@ -1118,6 +1239,8 @@ class XRayInferenceService:
                 "detections": detections,
                 "original_image_url": saved_upload.image_url,
                 "rendered_image_url": prediction["rendered_image_url"],
+                "heatmap_image_url": prediction.get("heatmap_image_url"),
+                "model_metrics": self.get_model_metrics(resolved_model_name),
             },
             "status": "completed",
             "processing_time": round(processing_time, 4),
