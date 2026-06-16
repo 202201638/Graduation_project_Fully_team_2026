@@ -7,7 +7,6 @@ from src.classification.train_efficientnet import train_efficientnet
 from src.classification.train_resnet import train_resnet
 from src.config import ARTIFACT_DIR, CHECKPOINT_DIR
 from src.detection.train_fasterrcnn import train_fasterrcnn
-from src.detection.train_retinanet import train_retinanet
 from src.detection.train_yolo import train_yolo
 
 
@@ -31,13 +30,6 @@ def run_phase3_baseline(det_epochs: int = 2, cls_epochs: int = 3):
             lambda: train_fasterrcnn(
                 epochs=det_epochs,
                 checkpoint_path=os.path.join(CHECKPOINT_DIR, "fasterrcnn_phase3.pt"),
-            ),
-        ),
-        (
-            "retinanet",
-            lambda: train_retinanet(
-                epochs=det_epochs,
-                checkpoint_path=os.path.join(CHECKPOINT_DIR, "retinanet_phase3.pt"),
             ),
         ),
         (

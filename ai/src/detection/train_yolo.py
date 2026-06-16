@@ -7,6 +7,8 @@ def train_yolo(
     patience: int = 10,
     fraction: float = 1.0,   # <1.0 trains on a data subset (used by Phase 4 proxy search)
     eval_test: bool = True,  # False = skip test-split eval (Phase 4 proxy)
+    base_weights: str = "",  # "" => resolve default (YOLOv8n); e.g. "yolo11m.pt" for YOLO11m
+    model_label: str = "yolo",  # report/key label for this variant ("yolo", "yolo11", ...)
     run_name: str = "yolov8_baseline",
 ):
     import os
@@ -16,7 +18,7 @@ def train_yolo(
     from src.config import RUNS_DIR, YOLO_DATA_YAML, IMG_SIZE
     from src.model_utils import resolve_yolo_base_weights
 
-    model = YOLO(resolve_yolo_base_weights())
+    model = YOLO(base_weights or resolve_yolo_base_weights())
     # Some checkpoints carry legacy keys (e.g. anchor_t) that newer Ultralytics rejects.
     model.overrides.pop("anchor_t", None)
 
@@ -79,7 +81,7 @@ def train_yolo(
 
     print("YOLO training finished", flush=True)
     return {
-        "model": "yolo",
+        "model": model_label,
         "task": "detection",
         # headline metrics reported on the held-out TEST split
         "map50": test_scores["map50"],

@@ -13,7 +13,6 @@ from src.classification.train_resnet import train_resnet
 from src.classification.train_densenet import train_densenet
 from src.classification.train_efficientnet import train_efficientnet
 from src.detection.train_fasterrcnn import train_fasterrcnn
-from src.detection.train_retinanet import train_retinanet
 from src.detection.train_yolo import train_yolo
 from src.phase4_optimization import optimize_model, CLASSIFICATION_MODELS
 from src.phase6_explainability import run_explainability_for_model
@@ -29,11 +28,16 @@ _ARCH: Dict[str, Dict] = {
                         "head": "Dropout + Linear(1280->2)", "input_size": CLS_IMG_SIZE, "primary_metric": "auc"},
     "yolo": {"family": "detection", "base": "YOLOv8n (Ultralytics)",
              "head": "anchor-free detect head", "input_size": IMG_SIZE, "primary_metric": "map50"},
+    "yolo11": {"family": "detection", "base": "YOLO11m (Ultralytics)",
+               "head": "anchor-free detect head", "input_size": IMG_SIZE, "primary_metric": "map50"},
     "fasterrcnn": {"family": "detection", "base": "Faster R-CNN ResNet50-FPN (pretrained)",
                    "head": "FastRCNNPredictor(2 classes)", "input_size": IMG_SIZE, "primary_metric": "map50"},
-    "retinanet": {"family": "detection", "base": "RetinaNet ResNet50-FPN (pretrained)",
-                  "head": "RetinaNetClassificationHead(2 classes)", "input_size": IMG_SIZE, "primary_metric": "map50"},
 }
+
+# YOLO-family (Ultralytics) models share one training/checkpoint/explain path.
+_YOLO_MODELS = {"yolo", "yolo11"}
+# Base weights per YOLO variant ("" => resolve the default YOLOv8n local/yaml).
+_YOLO_BASE_WEIGHTS = {"yolo": "", "yolo11": "yolo11m.pt"}
 
 # Unoptimized defaults used for the baseline (phase 3) run.
 _BASELINE: Dict[str, Dict] = {
@@ -41,15 +45,15 @@ _BASELINE: Dict[str, Dict] = {
     "densenet121": {"lr": 1e-4, "batch_size": 32, "dropout": 0.3, "weight_decay": 1e-4},
     "efficientnet_b0": {"lr": 1e-4, "batch_size": 32, "dropout": 0.3, "weight_decay": 1e-4},
     "yolo": {"lr": 1e-3, "batch_size": 16, "weight_decay": 5e-4, "anchor_size": 16},
+    "yolo11": {"lr": 1e-3, "batch_size": 8, "weight_decay": 5e-4, "anchor_size": 16},
     "fasterrcnn": {"lr": 5e-3, "batch_size": 4, "weight_decay": 5e-4},
-    "retinanet": {"lr": 5e-3, "batch_size": 4, "weight_decay": 5e-4},
 }
 
 # Epochs used for BOTH baseline and final runs (early stopping cuts these short),
 # so before/after isolates the effect of the optimized hyperparameters.
 _DEFAULT_EPOCHS: Dict[str, int] = {
     "resnet50": 12, "densenet121": 12, "efficientnet_b0": 12,
-    "fasterrcnn": 12, "retinanet": 12, "yolo": 35,
+    "fasterrcnn": 12, "yolo": 35, "yolo11": 40,
 }
 
 _CLS_TRAINERS = {
@@ -57,7 +61,7 @@ _CLS_TRAINERS = {
     "densenet121": train_densenet,
     "efficientnet_b0": train_efficientnet,
 }
-_DET_TRAINERS = {"fasterrcnn": train_fasterrcnn, "retinanet": train_retinanet}
+_DET_TRAINERS = {"fasterrcnn": train_fasterrcnn}
 
 
 def _train_one(model_name: str, params: Dict, epochs: int, checkpoint_path: Optional[str], run_tag: str) -> Dict:
@@ -71,14 +75,16 @@ def _train_one(model_name: str, params: Dict, epochs: int, checkpoint_path: Opti
             freeze_epochs=2,
             checkpoint_path=checkpoint_path,
         )
-    if model_name == "yolo":
+    if model_name in _YOLO_MODELS:
         return train_yolo(
             epochs=epochs,
             lr=float(params["lr"]),
             batch_size=int(params["batch_size"]),
             weight_decay=float(params["weight_decay"]),
             anchor_size=int(params.get("anchor_size", 16)),
-            run_name=f"{run_tag}_yolo",
+            base_weights=_YOLO_BASE_WEIGHTS.get(model_name, ""),
+            model_label=model_name,
+            run_name=f"{run_tag}_{model_name}",
         )
     return _DET_TRAINERS[model_name](
         epochs=epochs,
@@ -117,8 +123,8 @@ def run_model_pipeline(
     epochs = epochs or _DEFAULT_EPOCHS[model_name]
     is_cls = model_name in CLASSIFICATION_MODELS
     canonical_ckpt = (
-        os.path.join(CHECKPOINT_DIR, "yolo_best.pt")
-        if model_name == "yolo"
+        os.path.join(CHECKPOINT_DIR, f"{model_name}_best.pt")
+        if model_name in _YOLO_MODELS
         else os.path.join(CHECKPOINT_DIR, f"{model_name}.pt")
     )
 
@@ -132,7 +138,7 @@ def run_model_pipeline(
     # ---- Phase 3: baseline (unoptimized defaults) ----
     baseline_metrics = None
     if run_baseline:
-        baseline_ckpt = None if model_name == "yolo" else os.path.join(CHECKPOINT_DIR, f"{model_name}_baseline.pt")
+        baseline_ckpt = None if model_name in _YOLO_MODELS else os.path.join(CHECKPOINT_DIR, f"{model_name}_baseline.pt")
         baseline_metrics = _train_one(model_name, _BASELINE[model_name], epochs, baseline_ckpt, "phase3")
         report["phase3_baseline"] = {"hyperparameters": _BASELINE[model_name], "metrics": baseline_metrics}
 
@@ -150,7 +156,7 @@ def run_model_pipeline(
     report["phase5_final"] = {"hyperparameters": best_params, "metrics": final_metrics}
 
     # YOLO: copy best.pt to the canonical checkpoint name for backend/explain/demo
-    if model_name == "yolo":
+    if model_name in _YOLO_MODELS:
         src_pt = final_metrics.get("model_path")
         if src_pt and os.path.exists(src_pt):
             os.makedirs(CHECKPOINT_DIR, exist_ok=True)

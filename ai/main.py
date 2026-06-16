@@ -8,7 +8,6 @@ from src.yolo_visualization import show_yolo_samples
 
 from src.detection.train_yolo import train_yolo
 from src.detection.train_fasterrcnn import train_fasterrcnn
-from src.detection.train_retinanet import train_retinanet
 
 from src.classification.train_resnet import train_resnet
 from src.classification.train_densenet import train_densenet
@@ -34,7 +33,6 @@ RUN_VISUALIZE_YOLO = False
 # phase 3
 RUN_YOLO = False
 RUN_FASTER_RCNN = False
-RUN_RETINANET = False
 RUN_RESNET = False
 RUN_DENSENET = False
 RUN_EFFICIENTNET = False
@@ -71,9 +69,6 @@ if __name__ == "__main__":
 
     if RUN_FASTER_RCNN:
         train_fasterrcnn()
-
-    if RUN_RETINANET:
-        train_retinanet()
 
     if RUN_RESNET:
         train_resnet()

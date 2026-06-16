@@ -14,7 +14,6 @@ from src.classification.train_efficientnet import train_efficientnet
 from src.classification.train_resnet import train_resnet
 from src.config import ARTIFACT_DIR
 from src.detection.train_fasterrcnn import train_fasterrcnn
-from src.detection.train_retinanet import train_retinanet
 from src.detection.train_yolo import train_yolo
 from src.optimization.algorithms import (
     SearchDimension,
@@ -26,7 +25,9 @@ from src.optimization.algorithms import (
 BEST_PARAMS_PATH = os.path.join(ARTIFACT_DIR, "phase4_best_hyperparameters.json")
 
 CLASSIFICATION_MODELS = {"resnet50", "densenet121", "efficientnet_b0"}
-DETECTION_MODELS = {"yolo", "fasterrcnn", "retinanet"}
+DETECTION_MODELS = {"yolo", "yolo11", "fasterrcnn"}
+YOLO_MODELS = {"yolo", "yolo11"}
+_YOLO_BASE_WEIGHTS = {"yolo": "", "yolo11": "yolo11m.pt"}
 
 # Per-model search spaces
 _SEARCH_SPACES: Dict[str, List[SearchDimension]] = {
@@ -36,12 +37,13 @@ _SEARCH_SPACES: Dict[str, List[SearchDimension]] = {
         SearchDimension("weight_decay", 1e-5, 5e-3, "float"),
         SearchDimension("anchor_size", 8, 32, "int"),
     ],
-    "fasterrcnn": [
-        SearchDimension("lr", 5e-4, 1e-2, "float"),
-        SearchDimension("batch_size", 2, 6, "int"),
+    "yolo11": [
+        SearchDimension("lr", 1e-4, 5e-3, "float"),
+        SearchDimension("batch_size", 8, 16, "int"),
         SearchDimension("weight_decay", 1e-5, 5e-3, "float"),
+        SearchDimension("anchor_size", 8, 32, "int"),
     ],
-    "retinanet": [
+    "fasterrcnn": [
         SearchDimension("lr", 5e-4, 1e-2, "float"),
         SearchDimension("batch_size", 2, 6, "int"),
         SearchDimension("weight_decay", 1e-5, 5e-3, "float"),
@@ -98,7 +100,7 @@ def _proxy_score_detection(
     model_name: str, params: Dict[str, float], quick_epochs: int, train_batches: int, eval_batches: int, fraction: float
 ) -> float:
     try:
-        if model_name == "yolo":
+        if model_name in YOLO_MODELS:
             metrics = train_yolo(
                 epochs=max(2, quick_epochs + 1),
                 lr=float(params["lr"]),
@@ -108,12 +110,13 @@ def _proxy_score_detection(
                 patience=max(2, quick_epochs + 1),
                 fraction=fraction,
                 eval_test=False,
-                run_name="phase4_yolo",
+                base_weights=_YOLO_BASE_WEIGHTS.get(model_name, ""),
+                model_label=model_name,
+                run_name=f"phase4_{model_name}",
             )
             return float(metrics.get("map50", 0.0))
 
-        trainer = train_fasterrcnn if model_name == "fasterrcnn" else train_retinanet
-        metrics = trainer(
+        metrics = train_fasterrcnn(
             epochs=quick_epochs,
             lr=float(params["lr"]),
             batch_size=int(params["batch_size"]),
@@ -195,7 +198,7 @@ def optimize_model(
             "proxy_epochs": quick_epochs,
             "proxy_train_batches": None if is_classification else train_batches,
             "proxy_eval_batches": eval_batches,
-            "yolo_fraction": yolo_fraction if model_name == "yolo" else None,
+            "yolo_fraction": yolo_fraction if model_name in YOLO_MODELS else None,
         },
     }
 
@@ -216,7 +219,7 @@ def run_phase4_optimization(
 ) -> Dict:
     """Optimize the given models (default: all six)."""
     if models is None:
-        models = ["yolo", "fasterrcnn", "retinanet", "resnet50", "densenet121", "efficientnet_b0"]
+        models = ["yolo", "yolo11", "fasterrcnn", "resnet50", "densenet121", "efficientnet_b0"]
 
     for model_name in models:
         try:

@@ -4,7 +4,7 @@ This folder contains the reproducible research pipeline for chest X-ray pneumoni
 
 Current deployment policy:
 
-- `fasterrcnn` is the default web model because local checks showed better pneumonia localization than the available YOLO/RetinaNet assets.
+- `fasterrcnn` is the default web model because it showed the best pneumonia localization on the held-out test set (mAP@0.5 0.381, recall 0.81). YOLO11m is the newest detector and may overtake it once trained.
 - Detection models can draw pneumonia boxes.
 - Classification models cannot localize regions and should be shown as probability-only models.
 

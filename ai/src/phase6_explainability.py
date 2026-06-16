@@ -25,7 +25,6 @@ from src.model_utils import (
     build_efficientnet_b0_classifier,
     build_fasterrcnn_detector,
     build_resnet50_classifier,
-    build_retinanet_detector,
     load_checkpoint_if_available,
     resolve_latest_yolo_checkpoint,
 )
@@ -130,7 +129,7 @@ def _classifier_factory(model_name: str):
 
 def _detection_overlay(model_name: str, checkpoint_path: str, image_path: str, out_path: str):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    builder = build_fasterrcnn_detector if model_name == "fasterrcnn" else build_retinanet_detector
+    builder = build_fasterrcnn_detector
     model, _ = builder()
     load_checkpoint_if_available(model, checkpoint_path)
     model = model.to(device).eval()
@@ -182,7 +181,7 @@ def run_explainability_for_model(model_name: str, checkpoint_path: str = "") -> 
         ckpt = checkpoint_path or os.path.join(CHECKPOINT_DIR, f"{model_name}.pt")
         load_checkpoint_if_available(model, ckpt)
         result = _grad_cam(model, target_layer, image_path, out_path)
-    elif model_name == "yolo":
+    elif model_name in ("yolo", "yolo11"):
         result = _yolo_overlay(checkpoint_path, image_path, out_path)
     else:
         ckpt = checkpoint_path or os.path.join(CHECKPOINT_DIR, f"{model_name}.pt")

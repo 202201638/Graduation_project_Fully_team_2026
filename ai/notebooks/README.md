@@ -14,7 +14,7 @@ notebook runs **phases 3 -> 8** for one model and writes `artifacts/<model>_repo
 2. **The six model notebooks** - run each on its own (GPU on). Set `PREPPED_INPUT` to the
    dataset you published in step 1.
    - `01_resnet50.ipynb`, `02_densenet121.ipynb`, `03_efficientnet_b0.ipynb` (classification, 224px, Grad-CAM)
-   - `04_yolov8.ipynb`, `05_fasterrcnn.ipynb`, `06_retinanet.ipynb` (detection, 640px, box overlays)
+   - `04_yolov8.ipynb`, `05_fasterrcnn.ipynb`, `06_yolo11.ipynb` (detection, 640px, box overlays)
 
 Each notebook is self-contained for training: baseline (phase 3) -> PSO/GWO/SA optimization
 (phase 4) -> retrain with best params (phase 5) -> explainability (phase 6) -> final test-set
@@ -32,14 +32,14 @@ Send the six `*_report.json` files back; they get integrated into one comparison
 
 - **Classification** (ResNet50 / DenseNet121 / EfficientNet-B0): test **AUC ~ 0.82-0.92**.
   The old ~0.99-1.0 was a preprocessing leak (CLAHE applied only to pneumonia images), now fixed.
-- **Detection** (YOLO / Faster R-CNN / RetinaNet): test **mAP@0.5 ~ 0.20-0.45** - this is the
+- **Detection** (YOLOv8n / Faster R-CNN / YOLO11m): test **mAP@0.5 ~ 0.20-0.45** - this is the
   realistic range for RSNA pneumonia localization, not a defect.
 
 ## Tuning for the Kaggle time limit
 
 In each model notebook's run cell you can lower `EPOCHS`, `POPULATION`, `ITERATIONS`, or
-`PROXY_EPOCHS` if a session approaches 12h. Detection (especially Faster R-CNN / RetinaNet)
-is the slowest; the defaults are tuned to fit a single GPU session.
+`PROXY_EPOCHS` if a session approaches 12h. Faster R-CNN is the slowest; YOLO11m trains
+fast (raise its batch size on a P100). The defaults are tuned to fit a single GPU session.
 
 ## Backend
 

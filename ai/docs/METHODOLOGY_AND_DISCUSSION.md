@@ -55,7 +55,7 @@ All models use ImageNet-pretrained backbones (transfer learning).
 | EfficientNet-B0 | classification | 224 | EfficientNet-B0 + Dropout->Linear(1280->2) | lr 1e-4, bs 32, dropout 0.3, wd 1e-4 |
 | YOLOv8n | detection | 640 | Ultralytics YOLOv8 nano (anchor-free) | lr 1e-3, bs 16, wd 5e-4 |
 | Faster R-CNN | detection | 640 | ResNet50-FPN + FastRCNNPredictor(2) | lr 5e-3, bs 4, wd 5e-4, SGD m=0.9 |
-| RetinaNet | detection | 640 | ResNet50-FPN + focal-loss head(2) | lr 5e-3, bs 4, wd 5e-4, SGD m=0.9 |
+| YOLO11m | detection | 640 | Ultralytics YOLO11 medium (anchor-free) | lr 1e-3, bs 8, wd 5e-4 |
 
 The optimized hyperparameters per model (and the per-algorithm results) are recorded in each
 report's `phase4_optimization` and `final_hyperparameters`.
@@ -63,8 +63,8 @@ report's `phase4_optimization` and `final_hyperparameters`.
 ### Search spaces (phase 4)
 
 - **Classification**: lr [1e-5, 1e-3], batch_size [16, 48], dropout [0.1, 0.6], weight_decay [1e-7, 1e-2].
-- **YOLO**: lr [1e-4, 5e-3], batch_size [8, 24], weight_decay [1e-5, 5e-3], anchor_size [8, 32].
-- **Faster R-CNN / RetinaNet**: lr [5e-4, 1e-2], batch_size [2, 6], weight_decay [1e-5, 5e-3].
+- **YOLOv8n / YOLO11m**: lr [1e-4, 5e-3], batch_size [8, 24] (8-16 for YOLO11m), weight_decay [1e-5, 5e-3], anchor_size [8, 32].
+- **Faster R-CNN**: lr [5e-4, 1e-2], batch_size [2, 6], weight_decay [1e-5, 5e-3].
 
 ## 5. Training methodology (what prevents over/underfitting)
 
@@ -79,8 +79,8 @@ report's `phase4_optimization` and `final_hyperparameters`.
   checkpoint is restored before final evaluation.
 - **Mixed precision (AMP)** on GPU for speed/memory.
 - **Transfer learning**: backbone is frozen for the first 1-2 epochs (head warmup), then unfrozen.
-- **RetinaNet stability**: target sanitization + gradient clipping (max-norm 5.0); the previous
-  recall = 0.0 was caused by too few epochs and no warmup, both now addressed.
+- **YOLO11m**: trained through the Ultralytics pipeline (mosaic/HSV/flip augmentation, cosine LR,
+  built-in early stopping); medium model run at batch 8 to fit a 16GB GPU.
 
 Each report includes the per-epoch `history` (train/val loss and metric) so the train-vs-val
 curves can be shown to argue the models are neither over- nor under-fit.
@@ -106,7 +106,74 @@ supports a PSO-vs-GWO-vs-SA comparison in the discussion.
 **Honest expected ranges after the fix**: classification AUC ~0.82-0.92; detection mAP@0.5
 ~0.20-0.45 (RSNA localization is inherently hard - even strong public solutions sit near ~0.25 mAP).
 
-## 8. Limitations and future work
+## 8. Results: measured performance and model selection
+
+Five of the six models have been run end-to-end; **YOLO11m is pending** (it replaced RetinaNet) and will be added here.
+All numbers are on the held-out **test** split (20%, patient-wise, seed 42; 4,135 normal / 1,202
+pneumonia). "Deployed" marks the checkpoint shipped to the web app.
+
+### 8.1 Classification (whole-image)
+
+| Model | Config | AUC | Accuracy | Precision | Recall (Sens.) | Specificity | F1 | Params | Deployed |
+|---|---|---|---|---|---|---|---|---|---|
+| ResNet50 | baseline | 0.881 | 0.805 | 0.548 | 0.759 | 0.818 | 0.636 | 23.5M | |
+| ResNet50 | optimized | **0.884** | 0.810 | 0.557 | 0.761 | 0.824 | 0.643 | 23.5M | **yes** |
+| DenseNet121 | baseline | **0.883** | 0.802 | 0.542 | 0.785 | 0.807 | 0.641 | 7.0M | **yes** |
+| DenseNet121 | optimized | 0.880 | 0.752 | 0.472 | 0.851 | 0.723 | 0.607 | 7.0M | |
+| EfficientNet-B0 | baseline | **0.886** | 0.815 | 0.566 | 0.765 | 0.830 | 0.651 | 4.0M | **yes** |
+| EfficientNet-B0 | optimized | 0.874 | 0.734 | 0.453 | 0.884 | 0.690 | 0.599 | 4.0M | |
+
+### 8.2 Detection (localization)
+
+| Model | Config | mAP@0.5 | mAP@[.5:.95] | Recall@0.5 | Precision | Params | Deployed |
+|---|---|---|---|---|---|---|---|
+| YOLOv8n | baseline | **0.346** | 0.138 | 0.382 | 0.396 | 3.0M | **yes** |
+| YOLOv8n | optimized | 0.340 | 0.137 | 0.377 | 0.404 | 3.0M | |
+| Faster R-CNN | baseline | **0.381** | 0.124 | 0.812 | - | 41.3M | **yes** |
+| Faster R-CNN | optimized | 0.175 | 0.046 | 0.792 | - | 41.3M | |
+| YOLO11m | - | pending | pending | pending | - | ~20M | pending |
+
+### 8.3 Key finding: optimization vs a well-tuned baseline
+
+The phase-4 metaheuristic search ran on a deliberately cheap proxy (1 epoch, 30 eval batches) so
+it fits a Kaggle session. That proxy is **too noisy to rank configurations reliably**: it selected
+high-learning-rate, high-dropout settings that improved the proxy score but **hurt** the full
+retrain for four of the five models. The clearest case is Faster R-CNN, where the optimized
+learning rate (~0.0099) destabilized training and halved mAP@0.5 (0.381 -> 0.175); for DenseNet121
+and EfficientNet-B0 the optimized models traded precision for recall and lost AUC. Only ResNet50
+improved, and only marginally (+0.003 AUC).
+
+We therefore select the **validation-best** checkpoint per model (select on validation, report on
+test): ResNet50 keeps its optimized configuration; the others keep the baseline. This is itself a
+defensible thesis result: with a strong transfer-learning baseline, lightweight proxy-based
+hyperparameter search did not beat careful defaults, and **validation-based model selection** is
+what guarantees we never ship a regression.
+
+### 8.4 Best models and deployment decision
+
+- **Best classifier: EfficientNet-B0** (AUC 0.886, F1 0.651, only 4.0M parameters - the smallest
+  and fastest, ideal for serving).
+- **Best detector: Faster R-CNN** (mAP@0.5 0.381, recall 0.812) - chosen as the web app's
+  **default** because bounding boxes give the clearest localization for a clinician. Grad-CAM
+  heatmaps are generated for the classifier options to add soft localization.
+
+### 8.5 Calibration against published work (defensibility)
+
+- **Classification AUC ~0.88 is honest and competitive.** The well-known CheXNet (DenseNet121)
+  reported AUC 0.768 for pneumonia on ChestX-ray14. Papers reporting ~0.98 on RSNA typically use
+  the easier two-class split (lung-opacity vs normal) that drops the hard "abnormal but no opacity"
+  negatives; our binary `Target` task keeps them, so ~0.88 is the harder, honest number.
+- **Detection mAP@0.5 ~0.34-0.38 matches the literature.** Published RSNA detectors land ~0.32
+  (YOLOv3) to ~0.39 (a heavily engineered Faster R-CNN with custom backbone + CLAHE + Soft-NMS);
+  GeminiNet reports AP@0.5 0.4575. Our Faster R-CNN at 0.381 is on par with engineered results for
+  this architecture. The often-quoted challenge "top score 0.25" is on the stricter averaged-IoU
+  (0.4-0.75) metric, which corresponds to our mAP@[.5:.95] ~0.12-0.14.
+
+Conclusion: the models sit at the realistic published ceiling for this dataset; the remaining gap
+to "perfect" reflects dataset difficulty and label noise, not a training defect. A further
+hyperparameter re-run is not expected to move the headline metrics materially.
+
+## 9. Limitations and future work
 
 - Binary pneumonia only (no multi-pathology).
 - Detection mAP is bounded by dataset difficulty and box-label noise.

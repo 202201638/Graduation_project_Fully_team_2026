@@ -1,4 +1,4 @@
-"""Shared training loop for the TorchVision detectors (Faster R-CNN, RetinaNet).
+"""Shared training loop for the TorchVision detector (Faster R-CNN).
 
 Adds the pieces the original 2-epoch loops lacked: linear LR warmup + cosine
 decay, AMP, frozen-backbone warmup, mAP (via torchmetrics) alongside recall@0.5,

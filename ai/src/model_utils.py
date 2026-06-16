@@ -6,9 +6,8 @@ import torch
 import torch.nn as nn
 import torchvision
 from torchvision.models import DenseNet121_Weights, EfficientNet_B0_Weights, ResNet50_Weights
-from torchvision.models.detection import FasterRCNN_ResNet50_FPN_Weights, RetinaNet_ResNet50_FPN_Weights
+from torchvision.models.detection import FasterRCNN_ResNet50_FPN_Weights
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-from torchvision.models.detection.retinanet import RetinaNetClassificationHead
 
 from src.config import DEFAULT_YOLO_WEIGHTS, RUNS_DIR
 
@@ -105,35 +104,6 @@ def build_fasterrcnn_detector(
         ),
         fallback_builder=lambda: configure(
             torchvision.models.detection.fasterrcnn_resnet50_fpn(
-                weights=None,
-                weights_backbone=None,
-            )
-        ),
-        prefer_pretrained=prefer_pretrained,
-    )
-
-
-def build_retinanet_detector(
-    num_classes: int = 2, prefer_pretrained: bool = True
-) -> Tuple[torch.nn.Module, bool]:
-    def configure(model: torch.nn.Module) -> torch.nn.Module:
-        num_anchors = model.head.classification_head.num_anchors
-        model.head.classification_head = RetinaNetClassificationHead(
-            model.backbone.out_channels,
-            num_anchors,
-            num_classes,
-        )
-        return model
-
-    return _build_with_optional_weights(
-        label="RetinaNet",
-        pretrained_builder=lambda: configure(
-            torchvision.models.detection.retinanet_resnet50_fpn(
-                weights=RetinaNet_ResNet50_FPN_Weights.DEFAULT
-            )
-        ),
-        fallback_builder=lambda: configure(
-            torchvision.models.detection.retinanet_resnet50_fpn(
                 weights=None,
                 weights_backbone=None,
             )

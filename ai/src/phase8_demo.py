@@ -132,7 +132,7 @@ def run_demo_for_model(model_name: str, checkpoint_path: str = "", image_path: O
             "output_image": out_path,
             "input_image": image_path,
         }
-    elif model_name == "yolo":
+    elif model_name in ("yolo", "yolo11"):
         info = _yolo_overlay(checkpoint_path, image_path, out_path)
         payload = {"model": model_name, "task": "detection", "boxes": info["boxes_drawn"],
                    "output_image": out_path, "input_image": image_path}

@@ -33,7 +33,7 @@ def _metric_for(model_name: str, record: Dict) -> Optional[float]:
     if isinstance(record, dict) and record.get("status") == "failed":
         return None
     try:
-        if model_name in {"yolo", "fasterrcnn", "retinanet"}:
+        if model_name in {"yolo", "yolo11", "fasterrcnn"}:
             raw = record.get("map50")
             if raw is None:
                 raw = record.get("recall")
@@ -56,7 +56,7 @@ def run_phase7_final_evaluation():
     for m in models:
         before = _metric_for(m, baseline.get(m, {}))
         after = _metric_for(m, retrain.get(m, {}))
-        metric = "mAP@0.5" if m in {"yolo", "fasterrcnn", "retinanet"} else "AUC"
+        metric = "mAP@0.5" if m in {"yolo", "yolo11", "fasterrcnn"} else "AUC"
         rows.append(Row(model=m, before=before, after=after, metric=metric))
 
     print("| Model | Metric | Before Optimization | After Optimization |")
@@ -66,8 +66,8 @@ def run_phase7_final_evaluation():
         a = f"{r.after:.4f}" if r.after is not None else "-"
         print(f"| {r.model} | {r.metric} | {b} | {a} |")
 
-    det_rows = [r for r in rows if r.model in {"yolo", "fasterrcnn", "retinanet"}]
-    cls_rows = [r for r in rows if r.model not in {"yolo", "fasterrcnn", "retinanet"}]
+    det_rows = [r for r in rows if r.model in {"yolo", "yolo11", "fasterrcnn"}]
+    cls_rows = [r for r in rows if r.model not in {"yolo", "yolo11", "fasterrcnn"}]
 
     best_det = max(det_rows, key=lambda x: x.after or -1e9) if det_rows else None
     best_cls = max(cls_rows, key=lambda x: x.after or -1e9) if cls_rows else None
