@@ -46,7 +46,7 @@
           <input
             id="login-password"
             type="password"
-            placeholder="........"
+            placeholder="Enter your password"
             autocomplete="current-password"
             required
             [(ngModel)]="password"
@@ -62,15 +62,11 @@
         </div>
 
         <div class="form-row">
-          <label class="checkbox">
-            <input type="checkbox" />
-            <span>Remember me</span>
-          </label>
           <a routerLink="/forget-password" class="link">Forgot password?</a>
         </div>
 
         <button type="submit" class="btn primary" [disabled]="isLoading">
-          <span *ngIf="!isLoading">Login</span>
+          <span *ngIf="!isLoading">Sign in</span>
           <span *ngIf="isLoading">Logging in...</span>
         </button>
       </form>

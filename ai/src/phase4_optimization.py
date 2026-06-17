@@ -25,21 +25,15 @@ from src.optimization.algorithms import (
 BEST_PARAMS_PATH = os.path.join(ARTIFACT_DIR, "phase4_best_hyperparameters.json")
 
 CLASSIFICATION_MODELS = {"resnet50", "densenet121", "efficientnet_b0"}
-DETECTION_MODELS = {"yolo", "yolo11", "fasterrcnn"}
-YOLO_MODELS = {"yolo", "yolo11"}
-_YOLO_BASE_WEIGHTS = {"yolo": "", "yolo11": "yolo11m.pt"}
+DETECTION_MODELS = {"yolo", "fasterrcnn"}
+YOLO_MODELS = {"yolo"}
+_YOLO_BASE_WEIGHTS = {"yolo": ""}
 
 # Per-model search spaces
 _SEARCH_SPACES: Dict[str, List[SearchDimension]] = {
     "yolo": [
         SearchDimension("lr", 1e-4, 5e-3, "float"),
         SearchDimension("batch_size", 8, 24, "int"),
-        SearchDimension("weight_decay", 1e-5, 5e-3, "float"),
-        SearchDimension("anchor_size", 8, 32, "int"),
-    ],
-    "yolo11": [
-        SearchDimension("lr", 1e-4, 5e-3, "float"),
-        SearchDimension("batch_size", 8, 16, "int"),
         SearchDimension("weight_decay", 1e-5, 5e-3, "float"),
         SearchDimension("anchor_size", 8, 32, "int"),
     ],
@@ -219,7 +213,7 @@ def run_phase4_optimization(
 ) -> Dict:
     """Optimize the given models (default: all six)."""
     if models is None:
-        models = ["yolo", "yolo11", "fasterrcnn", "resnet50", "densenet121", "efficientnet_b0"]
+        models = ["yolo", "fasterrcnn", "resnet50", "densenet121", "efficientnet_b0"]
 
     for model_name in models:
         try:

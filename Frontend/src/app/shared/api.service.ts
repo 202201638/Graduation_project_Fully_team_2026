@@ -22,6 +22,13 @@ export type ApiDiagnosisStatus =
   | 'suspected_pneumonia'
   | 'no_pneumonia_detected';
 
+export interface ApiExplainabilityMap {
+  key: string;
+  label: string;
+  image_url: string;
+  caption: string;
+}
+
 export interface ApiAnalysisResultPayload {
   pneumonia_detected: boolean;
   suspected_pneumonia?: boolean | null;
@@ -33,6 +40,9 @@ export interface ApiAnalysisResultPayload {
   detections: ApiDetectionPrediction[];
   original_image_url?: string | null;
   rendered_image_url?: string | null;
+  heatmap_image_url?: string | null;
+  explainability_maps?: ApiExplainabilityMap[] | null;
+  model_metrics?: Record<string, unknown> | null;
 }
 
 export interface ApiAvailableModel {

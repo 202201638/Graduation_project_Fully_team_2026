@@ -1,53 +1,11 @@
 <div class="result-page">
-  <aside class="sidebar" aria-label="Main navigation">
-    <div class="sidebar-header">
-      <div class="sidebar-logo">CX</div>
-      <div class="sidebar-title">Chest X-ray</div>
-    </div>
-
-    <nav class="sidebar-nav">
-      <a routerLink="/dashboard" class="sidebar-link">
-        <span class="sidebar-icon">&#127968;</span>
-        <span>Dashboard</span>
-      </a>
-      <a routerLink="/upload" class="sidebar-link active">
-        <span class="sidebar-icon">&#128228;</span>
-        <span>Upload X-ray</span>
-      </a>
-      <a routerLink="/records" class="sidebar-link">
-        <span class="sidebar-icon">&#128193;</span>
-        <span>Patient Records</span>
-      </a>
-    </nav>
-
-    <div class="sidebar-footer">
-      <a routerLink="/profile" class="sidebar-link">
-        <span class="sidebar-icon">&#128100;</span>
-        <span>Profile</span>
-      </a>
-      <a routerLink="/settings" class="sidebar-link">
-        <span class="sidebar-icon">&#9881;</span>
-        <span>Settings</span>
-      </a>
-      <a routerLink="/logout" class="sidebar-link sidebar-logout">
-        <span class="sidebar-icon">&#9209;</span>
-        <span>Logout</span>
-      </a>
-    </div>
-  </aside>
+  <app-navbar></app-navbar>
 
   <main class="result-main">
     <header class="topbar">
-      <div class="topbar-left">
-        <h1 class="result-title">AI Diagnosis Result</h1>
-      </div>
-      <div class="topbar-right">
-        <button class="icon-button" type="button" aria-label="Search">
-          &#128269;
-        </button>
-        <button class="icon-button" type="button" aria-label="Notifications">
-          &#128276;
-        </button>
+      <div>
+        <p class="eyebrow">AI diagnosis</p>
+        <h1 class="result-title">Analysis Result</h1>
       </div>
     </header>
 
@@ -62,6 +20,7 @@
     <section class="result-content" *ngIf="!isLoading && !errorMessage && result as r">
       <div class="result-layout">
         <section class="result-left" aria-label="Diagnosis details">
+          <!-- Diagnosis + confidence -->
           <div class="result-card">
             <header class="result-header">
               <div class="result-meta">
@@ -81,89 +40,104 @@
               </span>
             </header>
 
-            <div class="result-diagnosis">
-              <div class="result-diagnosis-main">
-                Diagnosis:
+            <div class="gauge">
+              <div class="gauge-head">
+                <span class="gauge-caption">{{ confidenceCaption }}</span>
                 <span
-                  class="result-diagnosis-text"
+                  class="gauge-value"
                   [ngClass]="{
-                    safe: r.statusVariant === 'success',
-                    suspected: r.statusVariant === 'warning'
+                    'text-danger': r.statusVariant === 'danger',
+                    'text-warning': r.statusVariant === 'warning',
+                    'text-success': r.statusVariant === 'success'
                   }"
                 >
-                  {{ r.diagnosis }}
+                  {{ confidenceValue }}%
                 </span>
               </div>
-              <div class="result-confidence">Confidence: {{ confidenceLabel }}</div>
-              <div class="result-processing-time">
-                Processing time: {{ r.processingTime }}s
+              <div class="gauge-track">
+                <div
+                  class="gauge-fill"
+                  [ngClass]="{
+                    'fill-danger': r.statusVariant === 'danger',
+                    'fill-warning': r.statusVariant === 'warning',
+                    'fill-success': r.statusVariant === 'success'
+                  }"
+                  [style.width.%]="confidenceValue"
+                ></div>
               </div>
+              <div class="gauge-foot">{{ confidenceLabel }}</div>
             </div>
 
-            <div class="result-summary-grid">
-              <div class="summary-card">
-                <div class="summary-title">Findings</div>
-                <p>{{ r.findings }}</p>
-              </div>
-              <div class="summary-card">
-                <div class="summary-title">Recommendations</div>
-                <p>{{ r.recommendations }}</p>
-              </div>
-            </div>
+            <div class="processing-note">Processed in {{ r.processingTime }}s by {{ r.modelDisplayName }}</div>
+          </div>
 
-            <div class="result-image-grid">
-              <div class="result-image-panel">
-                <div class="image-panel-title">Rendered output</div>
-                <div class="result-image-wrapper">
-                  <ng-container *ngIf="r.renderedImage; else noRenderedImage">
-                    <img [src]="r.renderedImage" alt="Rendered model output" />
-                  </ng-container>
-                  <ng-template #noRenderedImage>
-                    <div class="result-image-placeholder">Rendered output not available</div>
-                  </ng-template>
-                </div>
-              </div>
-
-              <div class="result-image-panel">
-                <div class="image-panel-title">Original upload</div>
-                <div class="result-image-wrapper">
-                  <ng-container *ngIf="r.originalImage || r.image; else noOriginalImage">
-                    <img [src]="r.originalImage || r.image" alt="Original uploaded X-ray" />
-                  </ng-container>
-                  <ng-template #noOriginalImage>
-                    <div class="result-image-placeholder">Original image not available</div>
-                  </ng-template>
-                </div>
-              </div>
-            </div>
-
-            <div class="detections-card">
-              <div class="summary-title">Detections</div>
-              <ul class="detection-list" *ngIf="r.detections.length; else noDetections">
-                <li class="detection-item" *ngFor="let detection of r.detections">
-                  <div class="detection-main">
-                    <span class="detection-label">{{ detection.label }}</span>
-                    <span class="detection-confidence">
-                      {{ (detection.confidence * 100).toFixed(1) }}%
-                    </span>
-                  </div>
-                  <div class="detection-box">
-                    x1: {{ detection.bbox.x1 }}, y1: {{ detection.bbox.y1 }}, x2:
-                    {{ detection.bbox.x2 }}, y2: {{ detection.bbox.y2 }}
-                  </div>
-                </li>
-              </ul>
-
-              <ng-template #noDetections>
-                <div class="empty-detections">{{ emptyDetectionsMessage }}</div>
-              </ng-template>
-            </div>
-
-            <div class="result-footer">
-              <button class="btn ghost" type="button" (click)="backToUpload()">
-                Analyze another X-ray
+          <!-- Image viewer -->
+          <div class="result-card viewer-card">
+            <div class="viewer-tabs" *ngIf="imageTabs.length">
+              <button
+                type="button"
+                class="viewer-tab"
+                *ngFor="let tab of imageTabs"
+                [class.active]="activeImageTab === tab.key"
+                (click)="selectImageTab(tab.key)"
+              >
+                {{ tab.label }}
               </button>
             </div>
+            <div class="viewer-stage">
+              <ng-container *ngIf="activeImageSrc; else noImage">
+                <img [src]="activeImageSrc" [alt]="activeImageTab + ' view'" />
+              </ng-container>
+              <ng-template #noImage>
+                <div class="viewer-empty">Image not available</div>
+              </ng-template>
+            </div>
+            <p class="viewer-caption">{{ activeImageCaption }}</p>
+          </div>
+
+          <!-- AI interpretation + disclaimer -->
+          <div class="result-card interpretation-card">
+            <div class="summary-title">AI interpretation</div>
+            <p class="interpretation-text">{{ interpretation }}</p>
+            <div class="disclaimer-callout">{{ disclaimer }}</div>
+          </div>
+
+          <!-- Findings + recommendations -->
+          <div class="result-summary-grid">
+            <div class="summary-card">
+              <div class="summary-title">Findings</div>
+              <p>{{ r.findings }}</p>
+            </div>
+            <div class="summary-card">
+              <div class="summary-title">Recommendations</div>
+              <p>{{ r.recommendations }}</p>
+            </div>
+          </div>
+
+          <!-- Detections (secondary) -->
+          <div class="detections-card">
+            <div class="summary-title">Detected regions</div>
+            <ul class="detection-list" *ngIf="r.detections.length; else noDetections">
+              <li class="detection-item" *ngFor="let detection of r.detections; let i = index">
+                <div class="detection-main">
+                  <span class="detection-label">{{ i + 1 }}. {{ detection.label }}</span>
+                  <span class="detection-confidence">{{ (detection.confidence * 100).toFixed(1) }}%</span>
+                </div>
+                <div class="detection-box">
+                  box: ({{ detection.bbox.x1 }}, {{ detection.bbox.y1 }}) - ({{ detection.bbox.x2 }}, {{ detection.bbox.y2 }})
+                </div>
+              </li>
+            </ul>
+
+            <ng-template #noDetections>
+              <div class="empty-detections">{{ emptyDetectionsMessage }}</div>
+            </ng-template>
+          </div>
+
+          <div class="result-footer">
+            <button class="btn ghost" type="button" (click)="backToUpload()">
+              Analyze another X-ray
+            </button>
           </div>
         </section>
 
@@ -171,7 +145,7 @@
           <div class="side-card">
             <h2 class="side-card-title">Actions</h2>
             <div class="actions-list">
-              <button class="btn secondary" type="button" (click)="downloadReport()">
+              <button class="btn primary" type="button" (click)="downloadReport()">
                 Download Report
               </button>
               <button class="btn secondary" type="button" (click)="compareWithPreviousScan()">
@@ -180,31 +154,35 @@
             </div>
           </div>
 
-          <div class="side-card" *ngIf="r.metadata as metadata">
-            <h2 class="side-card-title">Model Metadata</h2>
+          <div class="side-card" *ngIf="hasReliability">
+            <h2 class="side-card-title">Model reliability</h2>
+            <div class="reliability-grid">
+              <div class="reliability-item" *ngFor="let item of reliabilityItems">
+                <div class="reliability-value">{{ item.value }}</div>
+                <div class="reliability-label">{{ item.label }}</div>
+                <div class="reliability-hint">{{ item.hint }}</div>
+              </div>
+            </div>
+            <p class="reliability-caption">{{ reliabilityCaption }}</p>
+          </div>
+
+          <div class="side-card">
+            <h2 class="side-card-title">Model</h2>
             <div class="meta-line">
-              <span>Model</span>
+              <span>Name</span>
               <strong>{{ metadataModelName }}</strong>
             </div>
             <div class="meta-line">
-              <span>Family</span>
+              <span>Type</span>
               <strong>{{ metadataModelFamily }}</strong>
-            </div>
-            <div class="meta-line">
-              <span>Weights</span>
-              <strong>{{ metadataWeightsFile }}</strong>
             </div>
             <div class="meta-line">
               <span>Task</span>
               <strong>{{ metadataTask }}</strong>
             </div>
             <div class="meta-line">
-              <span>Web demo detected</span>
-              <strong>{{ metadataWebDetected }}</strong>
-            </div>
-            <div class="meta-line">
-              <span>Web demo confidence</span>
-              <strong>{{ metadataWebConfidence }}</strong>
+              <span>Weights</span>
+              <strong>{{ metadataWeightsFile }}</strong>
             </div>
           </div>
 

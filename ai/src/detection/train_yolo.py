@@ -7,8 +7,8 @@ def train_yolo(
     patience: int = 10,
     fraction: float = 1.0,   # <1.0 trains on a data subset (used by Phase 4 proxy search)
     eval_test: bool = True,  # False = skip test-split eval (Phase 4 proxy)
-    base_weights: str = "",  # "" => resolve default (YOLOv8n); e.g. "yolo11m.pt" for YOLO11m
-    model_label: str = "yolo",  # report/key label for this variant ("yolo", "yolo11", ...)
+    base_weights: str = "",  # "" => resolve default (YOLOv8n base weights)
+    model_label: str = "yolo",  # report/key label for this variant
     run_name: str = "yolov8_baseline",
 ):
     import os

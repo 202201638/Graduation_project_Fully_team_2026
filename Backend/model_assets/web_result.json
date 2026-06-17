@@ -18,7 +18,7 @@
     "best_classification_auc": 0.8855,
     "leak_free": true,
     "models_deployed": ["resnet50", "densenet121", "efficientnet_b0", "yolo", "fasterrcnn"],
-    "models_pending": ["yolo11"]
+    "models_pending": []
   },
   "error": null
 }

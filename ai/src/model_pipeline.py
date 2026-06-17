@@ -28,16 +28,14 @@ _ARCH: Dict[str, Dict] = {
                         "head": "Dropout + Linear(1280->2)", "input_size": CLS_IMG_SIZE, "primary_metric": "auc"},
     "yolo": {"family": "detection", "base": "YOLOv8n (Ultralytics)",
              "head": "anchor-free detect head", "input_size": IMG_SIZE, "primary_metric": "map50"},
-    "yolo11": {"family": "detection", "base": "YOLO11m (Ultralytics)",
-               "head": "anchor-free detect head", "input_size": IMG_SIZE, "primary_metric": "map50"},
     "fasterrcnn": {"family": "detection", "base": "Faster R-CNN ResNet50-FPN (pretrained)",
                    "head": "FastRCNNPredictor(2 classes)", "input_size": IMG_SIZE, "primary_metric": "map50"},
 }
 
 # YOLO-family (Ultralytics) models share one training/checkpoint/explain path.
-_YOLO_MODELS = {"yolo", "yolo11"}
+_YOLO_MODELS = {"yolo"}
 # Base weights per YOLO variant ("" => resolve the default YOLOv8n local/yaml).
-_YOLO_BASE_WEIGHTS = {"yolo": "", "yolo11": "yolo11m.pt"}
+_YOLO_BASE_WEIGHTS = {"yolo": ""}
 
 # Unoptimized defaults used for the baseline (phase 3) run.
 _BASELINE: Dict[str, Dict] = {
@@ -45,7 +43,6 @@ _BASELINE: Dict[str, Dict] = {
     "densenet121": {"lr": 1e-4, "batch_size": 32, "dropout": 0.3, "weight_decay": 1e-4},
     "efficientnet_b0": {"lr": 1e-4, "batch_size": 32, "dropout": 0.3, "weight_decay": 1e-4},
     "yolo": {"lr": 1e-3, "batch_size": 16, "weight_decay": 5e-4, "anchor_size": 16},
-    "yolo11": {"lr": 1e-3, "batch_size": 8, "weight_decay": 5e-4, "anchor_size": 16},
     "fasterrcnn": {"lr": 5e-3, "batch_size": 4, "weight_decay": 5e-4},
 }
 
@@ -53,7 +50,7 @@ _BASELINE: Dict[str, Dict] = {
 # so before/after isolates the effect of the optimized hyperparameters.
 _DEFAULT_EPOCHS: Dict[str, int] = {
     "resnet50": 12, "densenet121": 12, "efficientnet_b0": 12,
-    "fasterrcnn": 12, "yolo": 35, "yolo11": 40,
+    "fasterrcnn": 12, "yolo": 35,
 }
 
 _CLS_TRAINERS = {

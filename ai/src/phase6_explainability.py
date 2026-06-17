@@ -169,6 +169,221 @@ def _yolo_overlay(checkpoint_path: str, image_path: str, out_path: str):
     return {"type": "detection_overlay", "image": out_path, "boxes_drawn": int(n)}
 
 
+def _attribution_cam(attribution: torch.Tensor) -> np.ndarray:
+    """Collapse a (C, H, W) pixel attribution into a normalized 0-1 saliency map."""
+    cam = attribution.abs().sum(dim=0)
+    cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
+    return cam.detach().cpu().numpy()
+
+
+def _integrated_gradients(model, image_path, out_path, steps: int = 24, chunk: int = 8):
+    """Integrated Gradients saliency for the pneumonia class (index 1)."""
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device).eval()
+    x, image_rgb = _load_cls_tensor(image_path, device)
+    baseline = torch.zeros_like(x)
+    delta = x - baseline
+    alphas = torch.linspace(1.0 / steps, 1.0, steps, device=device).view(steps, 1, 1, 1)
+
+    grad_accum = torch.zeros_like(x)
+    for start in range(0, steps, chunk):
+        sub_path = (baseline + alphas[start : start + chunk] * delta).detach().requires_grad_(True)
+        score = model(sub_path)[:, 1].sum()
+        grads = torch.autograd.grad(score, sub_path)[0]
+        grad_accum = grad_accum + grads.sum(dim=0, keepdim=True)
+
+    ig = (delta * (grad_accum / steps))[0]
+    _save_overlay(image_rgb, _attribution_cam(ig), out_path)
+    return {"type": "integrated_gradients", "image": out_path}
+
+
+def _gradient_shap(model, image_path, out_path, n_samples: int = 8, stdev: float = 0.15):
+    """GradientSHAP saliency for the pneumonia class (index 1)."""
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device).eval()
+    x, image_rgb = _load_cls_tensor(image_path, device)
+    baseline = torch.zeros_like(x)
+    shap_accum = torch.zeros_like(x)
+    for _ in range(n_samples):
+        alpha = float(torch.rand(1).item())
+        noised = x + torch.randn_like(x) * stdev
+        interpolated = (baseline + alpha * (noised - baseline)).detach().requires_grad_(True)
+        score = model(interpolated)[:, 1].sum()
+        grads = torch.autograd.grad(score, interpolated)[0]
+        shap_accum = shap_accum + (noised - baseline) * grads
+
+    shap_values = (shap_accum / n_samples)[0]
+    _save_overlay(image_rgb, _attribution_cam(shap_values), out_path)
+    return {"type": "gradient_shap", "image": out_path}
+
+
+def _eigen_cam_from_activation(activation: np.ndarray) -> np.ndarray:
+    """First principal component of a (C, H, W) activation, normalized to 0-1."""
+    channels, height, width = activation.shape
+    reshaped = np.nan_to_num(activation.reshape(channels, -1).T)
+    reshaped = reshaped - reshaped.mean(axis=0, keepdims=True)
+    try:
+        _u, _s, vt = np.linalg.svd(reshaped, full_matrices=False)
+        projection = reshaped @ vt[0]
+    except np.linalg.LinAlgError:
+        projection = reshaped.mean(axis=1)
+    cam = projection.reshape(height, width)
+    cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
+    return cam.astype(np.float32)
+
+
+def _eigen_cam_detector(model_name: str, checkpoint_path: str, image_path: str, out_path: str):
+    """Eigen-CAM saliency for a detector backbone (activation-based, no gradients)."""
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    captured = {}
+
+    def _hook(_module, _inputs, output):
+        captured["value"] = output
+
+    img = cv2.imread(image_path)
+    image_rgb = cv2.cvtColor(cv2.resize(img, (IMG_SIZE, IMG_SIZE)), cv2.COLOR_BGR2RGB)
+
+    if model_name in ("yolo",):
+        from ultralytics import YOLO
+
+        model = YOLO(resolve_latest_yolo_checkpoint(checkpoint_path))
+        handle = model.model.model[-2].register_forward_hook(_hook)
+        try:
+            model.predict(source=image_path, imgsz=IMG_SIZE, conf=0.25, verbose=False)
+        finally:
+            handle.remove()
+    else:
+        model, _ = build_fasterrcnn_detector()
+        load_checkpoint_if_available(model, checkpoint_path)
+        model = model.to(device).eval()
+        tensor = torch.from_numpy(image_rgb).permute(2, 0, 1).float().to(device) / 255.0
+        handle = model.backbone.body.layer4[-1].register_forward_hook(_hook)
+        try:
+            with torch.no_grad():
+                model([tensor])
+        finally:
+            handle.remove()
+
+    activation = captured.get("value")
+    if isinstance(activation, (list, tuple)):
+        activation = activation[0]
+    if activation is None:
+        raise RuntimeError(f"No activation captured for Eigen-CAM ({model_name}).")
+    activation = activation.detach().float().cpu().numpy()[0]
+    cam = _eigen_cam_from_activation(activation)
+    _save_overlay(image_rgb, cam, out_path)
+    return {"type": "eigen_cam", "image": out_path}
+
+
+def _score_cam(model, target_layer, image_path, out_path, top_k: int = 96, batch: int = 16):
+    """Score-CAM saliency for the pneumonia class (gradient-free, class-discriminative)."""
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device).eval()
+    x, image_rgb = _load_cls_tensor(image_path, device)
+
+    captured = {}
+
+    def _hook(_module, _inputs, output):
+        captured["value"] = output
+
+    handle = target_layer.register_forward_hook(_hook)
+    try:
+        with torch.no_grad():
+            model(x)
+    finally:
+        handle.remove()
+
+    activations = captured["value"][0].float()  # (C, H, W)
+    k = min(top_k, activations.shape[0])
+    top_idx = torch.topk(activations.mean(dim=(1, 2)), k).indices
+    size = tuple(x.shape[-2:])
+    maps = F.interpolate(
+        activations[top_idx].unsqueeze(1), size=size, mode="bilinear", align_corners=False
+    )
+    flat = maps.view(k, -1)
+    mins = flat.min(dim=1, keepdim=True).values
+    maxs = flat.max(dim=1, keepdim=True).values
+    maps = ((flat - mins) / (maxs - mins + 1e-8)).view(k, 1, *size)
+
+    scores = torch.zeros(k, device=device)
+    with torch.no_grad():
+        for start in range(0, k, batch):
+            scores[start : start + batch] = torch.softmax(
+                model(x * maps[start : start + batch]), dim=1
+            )[:, 1]
+
+    weights = torch.relu(scores).view(k, 1, 1)
+    cam = torch.relu((weights * maps.squeeze(1)).sum(dim=0))
+    cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
+    _save_overlay(image_rgb, cam.detach().cpu().numpy(), out_path)
+    return {"type": "score_cam", "image": out_path}
+
+
+def _occlusion_detector(model_name, checkpoint_path, image_path, out_path, grid: int = 12):
+    """Occlusion-sensitivity saliency for a detector (gradient-free, uniform across families)."""
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    size = IMG_SIZE
+    base = cv2.imread(image_path)
+    img = cv2.cvtColor(cv2.resize(base, (size, size)), cv2.COLOR_BGR2RGB)
+    mean_color = tuple(int(c) for c in img.reshape(-1, 3).mean(axis=0))
+
+    if model_name in ("yolo",):
+        from ultralytics import YOLO
+
+        model = YOLO(resolve_latest_yolo_checkpoint(checkpoint_path))
+
+        def _top_conf(images):
+            results = model.predict(
+                source=[cv2.cvtColor(im, cv2.COLOR_RGB2BGR) for im in images],
+                imgsz=size,
+                conf=0.001,
+                verbose=False,
+            )
+            return [
+                float(r.boxes.conf.max().item()) if (r.boxes is not None and len(r.boxes) > 0) else 0.0
+                for r in results
+            ]
+
+        batch = 16
+    else:
+        model, _ = build_fasterrcnn_detector()
+        load_checkpoint_if_available(model, checkpoint_path)
+        model = model.to(device).eval()
+
+        def _top_conf(images):
+            tensors = [
+                torch.from_numpy(im).permute(2, 0, 1).float().to(device) / 255.0 for im in images
+            ]
+            with torch.no_grad():
+                outputs = model(tensors)
+            return [
+                float(o["scores"].max().item()) if o["scores"].numel() else 0.0 for o in outputs
+            ]
+
+        batch = 4
+
+    baseline = _top_conf([img])[0]
+    cell = size // grid
+    occluded, cells = [], []
+    for gy in range(grid):
+        for gx in range(grid):
+            patch = img.copy()
+            patch[gy * cell : (gy + 1) * cell, gx * cell : (gx + 1) * cell] = mean_color
+            occluded.append(patch)
+            cells.append((gy, gx))
+
+    importance = np.zeros((grid, grid), dtype=np.float32)
+    for start in range(0, len(occluded), batch):
+        for (gy, gx), conf in zip(cells[start : start + batch], _top_conf(occluded[start : start + batch])):
+            importance[gy, gx] = max(0.0, baseline - conf)
+
+    cam = importance - importance.min()
+    cam = cam / (cam.max() + 1e-8)
+    cam = cv2.resize(cam, (size, size))
+    _save_overlay(img, cam, out_path)
+    return {"type": "occlusion", "image": out_path}
+
+
 def run_explainability_for_model(model_name: str, checkpoint_path: str = "") -> dict:
     """Grad-CAM for classifiers, predicted-box overlay for detectors (single model)."""
     print(f"Phase 6: explainability for {model_name}", flush=True)
@@ -176,17 +391,49 @@ def run_explainability_for_model(model_name: str, checkpoint_path: str = "") -> 
     out_dir = os.path.join(ARTIFACT_DIR, "explainability")
     out_path = os.path.join(out_dir, f"{model_name}_explain.png")
 
+    extra_maps = []
     if model_name in CLASSIFICATION_MODELS:
         model, target_layer = _classifier_factory(model_name)
         ckpt = checkpoint_path or os.path.join(CHECKPOINT_DIR, f"{model_name}.pt")
         load_checkpoint_if_available(model, ckpt)
         result = _grad_cam(model, target_layer, image_path, out_path)
-    elif model_name in ("yolo", "yolo11"):
-        result = _yolo_overlay(checkpoint_path, image_path, out_path)
+        # Two extra gradient-based attributions on the same loaded classifier.
+        for suffix, fn in (
+            ("integrated_gradients", _integrated_gradients),
+            ("gradient_shap", _gradient_shap),
+        ):
+            extra_path = os.path.join(out_dir, f"{model_name}_{suffix}.png")
+            try:
+                extra_maps.append(fn(model, image_path, extra_path))
+            except Exception as exc:
+                print(f"{suffix} failed for {model_name}: {exc}", flush=True)
+        # Gradient-free Score-CAM (different paradigm from the three gradient methods).
+        sc_path = os.path.join(out_dir, f"{model_name}_score_cam.png")
+        try:
+            extra_maps.append(_score_cam(model, target_layer, image_path, sc_path))
+        except Exception as exc:
+            print(f"score_cam failed for {model_name}: {exc}", flush=True)
     else:
-        ckpt = checkpoint_path or os.path.join(CHECKPOINT_DIR, f"{model_name}.pt")
-        result = _detection_overlay(model_name, ckpt, image_path, out_path)
+        if model_name in ("yolo",):
+            result = _yolo_overlay(checkpoint_path, image_path, out_path)
+            det_ckpt = checkpoint_path
+        else:
+            det_ckpt = checkpoint_path or os.path.join(CHECKPOINT_DIR, f"{model_name}.pt")
+            result = _detection_overlay(model_name, det_ckpt, image_path, out_path)
+        # Eigen-CAM backbone saliency, the detector-appropriate analogue.
+        eigen_path = os.path.join(out_dir, f"{model_name}_eigencam.png")
+        try:
+            extra_maps.append(_eigen_cam_detector(model_name, det_ckpt, image_path, eigen_path))
+        except Exception as exc:
+            print(f"eigen_cam failed for {model_name}: {exc}", flush=True)
+        # Gradient-free occlusion sensitivity.
+        occ_path = os.path.join(out_dir, f"{model_name}_occlusion.png")
+        try:
+            extra_maps.append(_occlusion_detector(model_name, det_ckpt, image_path, occ_path))
+        except Exception as exc:
+            print(f"occlusion failed for {model_name}: {exc}", flush=True)
 
+    result["extra_maps"] = extra_maps
     result["source_image"] = image_path
     return result
 

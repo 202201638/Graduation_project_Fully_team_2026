@@ -30,16 +30,6 @@
       "default_conf": 0.1,
       "confirmed_conf": 0.25
     },
-    "yolo11": {
-      "display_name": "YOLO11m",
-      "model_type": "ultralytics_yolo_detection",
-      "task": "pneumonia_detection",
-      "weights_file": "yolo11_best.pt",
-      "class_names": ["pneumonia"],
-      "default_imgsz": 640,
-      "default_conf": 0.1,
-      "confirmed_conf": 0.25
-    },
     "resnet50": {
       "display_name": "ResNet50",
       "model_type": "torchvision_resnet50_classification",
@@ -75,7 +65,6 @@
   "handoff_files": [
     "demo_output.png",
     "fasterrcnn.pt",
-    "yolo11_best.pt",
     "resnet50.pt",
     "densenet121.pt",
     "efficientnet_b0.pt",

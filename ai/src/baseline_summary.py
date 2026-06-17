@@ -29,7 +29,6 @@ if __name__ == "__main__":
     example_results = [
         ModelResult(name="YOLOv8", task="detection", map50=0.0, recall=0.0),
         ModelResult(name="Faster R-CNN", task="detection", recall=0.0),
-        ModelResult(name="YOLO11m", task="detection", map50=0.0, recall=0.0),
         ModelResult(name="ResNet50", task="classification", accuracy=0.0),
         ModelResult(name="DenseNet121", task="classification", accuracy=0.0),
         ModelResult(name="EfficientNet-B0", task="classification", accuracy=0.0),

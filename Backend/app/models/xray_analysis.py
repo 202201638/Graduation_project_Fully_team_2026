@@ -67,6 +67,7 @@ class AnalysisResult(BaseModel):
     original_image_url: Optional[str] = None
     rendered_image_url: Optional[str] = None
     heatmap_image_url: Optional[str] = None
+    explainability_maps: List[Dict[str, Any]] = Field(default_factory=list)
     model_metrics: Dict[str, Any] = Field(default_factory=dict)
 
 class XRayAnalysisInDB(XRayAnalysisBase):

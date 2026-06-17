@@ -18,7 +18,6 @@ from src.config import (
 BACKEND_ASSETS_DIR = PROJECT_ROOT.parent / "Backend" / "model_assets"
 EXPECTED_CHECKPOINTS = (
     "fasterrcnn.pt",
-    "yolo11_best.pt",
     "resnet50.pt",
     "densenet121.pt",
     "efficientnet_b0.pt",

@@ -72,7 +72,7 @@ DEFAULT_MODEL_KEY = "fasterrcnn"
 DETECTION_NMS_IOU_THRESHOLD = 0.30
 MAX_RENDERED_DETECTIONS = 3
 # Ultralytics YOLO-family models share one load + predict path.
-YOLO_MODEL_KEYS = {"yolo", "yolo11"}
+YOLO_MODEL_KEYS = {"yolo"}
 
 
 @dataclass(frozen=True)
@@ -116,19 +116,6 @@ MODEL_REGISTRY: dict[str, ModelCatalogSpec] = {
         default_conf=0.10,
         confirmed_conf=0.25,
         description="Torchvision Faster R-CNN detector that returns pneumonia boxes.",
-    ),
-    "yolo11": ModelCatalogSpec(
-        key="yolo11",
-        display_name="YOLO11m",
-        family=MODEL_FAMILY_DETECTION,
-        model_type="ultralytics_yolo_detection",
-        task="pneumonia_detection",
-        weights_file="yolo11_best.pt",
-        class_names=("pneumonia",),
-        default_conf=0.10,
-        confirmed_conf=0.25,
-        default_imgsz=640,
-        description="Ultralytics YOLO11m detector that returns pneumonia boxes.",
     ),
     "resnet50": ModelCatalogSpec(
         key="resnet50",
@@ -319,7 +306,7 @@ class XRayInferenceService:
         model_name: str,
         metrics: Dict[str, Any],
     ) -> tuple[Optional[str], Optional[float], Optional[str], Optional[float]]:
-        if model_name in {"yolo", "yolo11", "fasterrcnn"}:
+        if model_name in {"yolo", "fasterrcnn"}:
             return (
                 "mAP@0.5",
                 self._float_or_none(metrics.get("map50")),
@@ -492,24 +479,365 @@ class XRayInferenceService:
             return model.features[-1]
         return None
 
-    def _write_gradcam_overlay(
+    def _write_attribution_overlay(
         self,
         cam: np.ndarray,
         base_bgr: np.ndarray,
         model_name: str,
         saved_upload: SavedUpload,
+        suffix: str = "gradcam",
     ) -> str:
+        """Blend a normalized 0-1 saliency map over the X-ray as a JET heatmap.
+
+        Shared by every pixel-attribution method (Grad-CAM, Integrated Gradients,
+        GradientSHAP, Eigen-CAM); `suffix` keeps the rendered files distinct.
+        """
         height, width = base_bgr.shape[:2]
         cam_resized = cv2.resize(cam.astype(np.float32), (width, height))
         heatmap = cv2.applyColorMap(np.uint8(255 * np.clip(cam_resized, 0.0, 1.0)), cv2.COLORMAP_JET)
         overlay = cv2.addWeighted(
             heatmap, GRADCAM_BLEND_ALPHA, base_bgr, 1.0 - GRADCAM_BLEND_ALPHA, 0.0
         )
-        filename = f"{saved_upload.file_path.stem}_{model_name}_gradcam.png"
+        filename = f"{saved_upload.file_path.stem}_{model_name}_{suffix}.png"
         out_path = RENDERED_DIR / filename
         if not cv2.imwrite(str(out_path), overlay):
-            raise RuntimeError("Failed to write Grad-CAM overlay image.")
+            raise RuntimeError(f"Failed to write {suffix} overlay image.")
         return f"/uploads/rendered/{filename}"
+
+    @staticmethod
+    def _attribution_to_cam(attribution: "torch.Tensor") -> np.ndarray:
+        """Collapse a (C, H, W) pixel attribution into a normalized 0-1 saliency map."""
+        cam = attribution.abs().sum(dim=0)
+        cam = cam - cam.min()
+        cam_max = float(cam.max())
+        if cam_max > 0:
+            cam = cam / cam_max
+        return cam.detach().cpu().numpy()
+
+    def _integrated_gradients(
+        self,
+        model,
+        model_name: str,
+        input_tensor: "torch.Tensor",
+        base_bgr: np.ndarray,
+        saved_upload: SavedUpload,
+        steps: int = 24,
+        chunk: int = 8,
+    ) -> str:
+        """Integrated Gradients saliency for the pneumonia class (index 1).
+
+        Integrates the gradient of the pneumonia logit along a straight path from a
+        black baseline to the input, batched in small chunks to bound memory.
+        """
+        model.zero_grad(set_to_none=True)
+        baseline = torch.zeros_like(input_tensor)
+        delta = input_tensor - baseline
+        alphas = torch.linspace(
+            1.0 / steps, 1.0, steps, device=input_tensor.device
+        ).view(steps, 1, 1, 1)
+
+        grad_accum = torch.zeros_like(input_tensor)
+        for start in range(0, steps, chunk):
+            sub_path = (baseline + alphas[start : start + chunk] * delta).detach().requires_grad_(True)
+            logits = model(sub_path)
+            score = logits[:, 1].sum()
+            grads = torch.autograd.grad(score, sub_path)[0]
+            grad_accum = grad_accum + grads.sum(dim=0, keepdim=True)
+
+        ig = (delta * (grad_accum / steps))[0]
+        cam = self._attribution_to_cam(ig)
+        return self._write_attribution_overlay(
+            cam, base_bgr, model_name, saved_upload, "integrated_gradients"
+        )
+
+    def _gradient_shap(
+        self,
+        model,
+        model_name: str,
+        input_tensor: "torch.Tensor",
+        base_bgr: np.ndarray,
+        saved_upload: SavedUpload,
+        n_samples: int = 8,
+        stdev: float = 0.15,
+    ) -> str:
+        """GradientSHAP saliency for the pneumonia class (index 1).
+
+        Averages (input - baseline) * gradient over several noisy, randomly
+        interpolated samples (the gradient-based SHAP estimator).
+        """
+        model.zero_grad(set_to_none=True)
+        baseline = torch.zeros_like(input_tensor)
+        shap_accum = torch.zeros_like(input_tensor)
+        for _ in range(n_samples):
+            alpha = float(torch.rand(1).item())
+            noised = input_tensor + torch.randn_like(input_tensor) * stdev
+            interpolated = (baseline + alpha * (noised - baseline)).detach().requires_grad_(True)
+            logits = model(interpolated)
+            score = logits[:, 1].sum()
+            grads = torch.autograd.grad(score, interpolated)[0]
+            shap_accum = shap_accum + (noised - baseline) * grads
+
+        shap_values = (shap_accum / n_samples)[0]
+        cam = self._attribution_to_cam(shap_values)
+        return self._write_attribution_overlay(
+            cam, base_bgr, model_name, saved_upload, "gradient_shap"
+        )
+
+    def _score_cam(
+        self,
+        model,
+        model_name: str,
+        input_tensor: "torch.Tensor",
+        base_bgr: np.ndarray,
+        saved_upload: SavedUpload,
+        top_k: int = 96,
+        batch: int = 16,
+    ) -> str:
+        """Score-CAM saliency for the pneumonia class (gradient-free, class-discriminative).
+
+        Masks the input with each upsampled activation channel and weights that channel
+        by the resulting pneumonia score. Limited to the top-K channels (by mean
+        activation) and batched so it stays fast on the GPU.
+        """
+        target_layer = self._gradcam_target_layer(model, model_name)
+        if target_layer is None:
+            raise RuntimeError(f"No Score-CAM target layer for {model_name}.")
+
+        captured: Dict[str, Any] = {}
+
+        def _hook(_module, _inputs, output):
+            captured["value"] = output
+
+        handle = target_layer.register_forward_hook(_hook)
+        try:
+            with torch.inference_mode():
+                model(input_tensor)
+        finally:
+            handle.remove()
+
+        activations = captured.get("value")
+        if activations is None:
+            raise RuntimeError("Score-CAM captured no activation.")
+        activations = activations[0].float()  # (C, H, W)
+        channels = activations.shape[0]
+        k = min(top_k, channels)
+
+        # Keep the most active channels, then upsample + min-max normalize each to [0, 1].
+        energy = activations.mean(dim=(1, 2))
+        top_idx = torch.topk(energy, k).indices
+        size = tuple(input_tensor.shape[-2:])
+        maps = nn.functional.interpolate(
+            activations[top_idx].unsqueeze(1), size=size, mode="bilinear", align_corners=False
+        )  # (k, 1, Hin, Win)
+        flat = maps.view(k, -1)
+        mins = flat.min(dim=1, keepdim=True).values
+        maxs = flat.max(dim=1, keepdim=True).values
+        maps = ((flat - mins) / (maxs - mins + 1e-8)).view(k, 1, *size)
+
+        scores = torch.zeros(k, device=input_tensor.device)
+        with torch.inference_mode():
+            for start in range(0, k, batch):
+                masked = input_tensor * maps[start : start + batch]  # (b, C, Hin, Win)
+                logits = model(masked)
+                scores[start : start + batch] = torch.softmax(logits, dim=1)[:, 1]
+
+        weights = torch.relu(scores).view(k, 1, 1)
+        cam = torch.relu((weights * maps.squeeze(1)).sum(dim=0))
+        cam = cam - cam.min()
+        cam_max = float(cam.max())
+        if cam_max > 0:
+            cam = cam / cam_max
+        return self._write_attribution_overlay(
+            cam.detach().cpu().numpy(), base_bgr, model_name, saved_upload, "score_cam"
+        )
+
+    def _eigencam_target_layer(self, model, model_name: str):
+        """Last high-level conv block to read for Eigen-CAM, per detector architecture."""
+        if model_name == "fasterrcnn":
+            return model.backbone.body.layer4[-1]
+        if model_name in YOLO_MODEL_KEYS:
+            # ultralytics DetectionModel: the block just before the Detect head.
+            return model.model.model[-2]
+        return None
+
+    @staticmethod
+    def _eigen_cam_from_activation(activation: np.ndarray) -> np.ndarray:
+        """First principal component of a (C, H, W) activation, normalized to 0-1."""
+        channels, height, width = activation.shape
+        reshaped = np.nan_to_num(activation.reshape(channels, -1).T)  # (H*W, C)
+        reshaped = reshaped - reshaped.mean(axis=0, keepdims=True)
+        try:
+            _u, _s, vt = np.linalg.svd(reshaped, full_matrices=False)
+            projection = reshaped @ vt[0]
+        except np.linalg.LinAlgError:
+            projection = reshaped.mean(axis=1)
+        cam = projection.reshape(height, width)
+        cam = cam - cam.min()
+        cam_max = float(cam.max())
+        if cam_max > 0:
+            cam = cam / cam_max
+        return cam.astype(np.float32)
+
+    def _detector_eigencam(
+        self,
+        model,
+        model_name: str,
+        base_bgr: np.ndarray,
+        saved_upload: SavedUpload,
+    ) -> Optional[str]:
+        """Eigen-CAM saliency for a detector (activation-based, target-free, no gradients)."""
+        target_layer = self._eigencam_target_layer(model, model_name)
+        if target_layer is None:
+            return None
+
+        captured: Dict[str, Any] = {}
+
+        def _hook(_module, _inputs, output):
+            captured["value"] = output
+
+        handle = target_layer.register_forward_hook(_hook)
+        try:
+            if model_name in YOLO_MODEL_KEYS:
+                model.predict(
+                    source=str(saved_upload.file_path),
+                    imgsz=640,
+                    device=0 if TORCH_DEVICE == "cuda" else "cpu",
+                    verbose=False,
+                )
+            else:
+                with Image.open(saved_upload.file_path) as pil_image:
+                    rgb_image = pil_image.convert("RGB")
+                tensor = transforms_functional.to_tensor(rgb_image).to(TORCH_DEVICE)
+                with torch.inference_mode():
+                    model([tensor])
+        finally:
+            handle.remove()
+
+        activation = captured.get("value")
+        if isinstance(activation, (list, tuple)):
+            activation = activation[0]
+        if activation is None:
+            return None
+
+        activation = activation.detach().float().cpu().numpy()[0]
+        cam = self._eigen_cam_from_activation(activation)
+        return self._write_attribution_overlay(cam, base_bgr, model_name, saved_upload, "eigencam")
+
+    def _detector_top_confidence(self, model, model_name: str, images_rgb: list) -> list:
+        """Top detection confidence for a batch of RGB uint8 images (gradient-free)."""
+        if model_name in YOLO_MODEL_KEYS:
+            sources = [cv2.cvtColor(img, cv2.COLOR_RGB2BGR) for img in images_rgb]
+            results = model.predict(
+                source=sources,
+                imgsz=640,
+                conf=0.001,
+                device=0 if TORCH_DEVICE == "cuda" else "cpu",
+                verbose=False,
+            )
+            confidences = []
+            for result in results:
+                boxes = result.boxes
+                if boxes is not None and len(boxes) > 0:
+                    confidences.append(float(boxes.conf.max().item()))
+                else:
+                    confidences.append(0.0)
+            return confidences
+
+        tensors = [
+            torch.from_numpy(img).permute(2, 0, 1).float().to(TORCH_DEVICE) / 255.0
+            for img in images_rgb
+        ]
+        with torch.inference_mode():
+            outputs = model(tensors)
+        confidences = []
+        for output in outputs:
+            scores = output.get("scores")
+            confidences.append(
+                float(scores.max().item()) if scores is not None and scores.numel() else 0.0
+            )
+        return confidences
+
+    def _detector_occlusion(
+        self,
+        model,
+        model_name: str,
+        base_bgr: np.ndarray,
+        saved_upload: SavedUpload,
+        grid: int = 10,
+    ) -> Optional[str]:
+        """Occlusion-sensitivity saliency for a detector (gradient-free, uniform across families).
+
+        Blanks each cell of a coarse grid and measures the drop in the top detection
+        confidence; larger drops mean the region mattered more. Batched to stay fast on GPU.
+        """
+        size = 640
+        img = cv2.cvtColor(cv2.resize(base_bgr, (size, size)), cv2.COLOR_BGR2RGB)
+        mean_color = tuple(int(c) for c in img.reshape(-1, 3).mean(axis=0))
+
+        baseline_conf = self._detector_top_confidence(model, model_name, [img])[0]
+        if baseline_conf <= 0.0:
+            return None  # nothing detected to explain
+
+        cell = size // grid
+        occluded, cells = [], []
+        for gy in range(grid):
+            for gx in range(grid):
+                patch = img.copy()
+                patch[gy * cell : (gy + 1) * cell, gx * cell : (gx + 1) * cell] = mean_color
+                occluded.append(patch)
+                cells.append((gy, gx))
+
+        # Keep Faster R-CNN batches small: larger ones thrash the 3050 Ti's 4 GB into
+        # shared host memory and become ~50x slower, so 4 is the safe sweet spot.
+        batch = 4 if model_name == "fasterrcnn" else 16
+        importance = np.zeros((grid, grid), dtype=np.float32)
+        for start in range(0, len(occluded), batch):
+            confidences = self._detector_top_confidence(model, model_name, occluded[start : start + batch])
+            for (gy, gx), conf in zip(cells[start : start + batch], confidences):
+                importance[gy, gx] = max(0.0, baseline_conf - conf)
+
+        cam = importance - importance.min()
+        cam_max = float(cam.max())
+        if cam_max > 0:
+            cam = cam / cam_max
+        return self._write_attribution_overlay(cam, base_bgr, model_name, saved_upload, "occlusion")
+
+    def _detector_explainability_maps(
+        self,
+        model,
+        model_name: str,
+        base_bgr: np.ndarray,
+        saved_upload: SavedUpload,
+    ) -> list[dict[str, str]]:
+        """Eigen-CAM + Occlusion heatmaps for a detector, each best-effort so it can't break the prediction."""
+        maps: list[dict[str, str]] = []
+        try:
+            eigen_url = self._detector_eigencam(model, model_name, base_bgr, saved_upload)
+            if eigen_url:
+                maps.append(
+                    {
+                        "key": "eigencam",
+                        "label": "Eigen-CAM",
+                        "image_url": eigen_url,
+                        "caption": "Eigen-CAM: principal activation of the detector backbone (where the network focuses).",
+                    }
+                )
+        except Exception as exc:
+            print(f"Eigen-CAM failed for {model_name}: {exc}")
+        try:
+            occlusion_url = self._detector_occlusion(model, model_name, base_bgr, saved_upload)
+            if occlusion_url:
+                maps.append(
+                    {
+                        "key": "occlusion",
+                        "label": "Occlusion",
+                        "image_url": occlusion_url,
+                        "caption": "Occlusion sensitivity: regions where hiding the image most reduces the model's detection confidence.",
+                    }
+                )
+        except Exception as exc:
+            print(f"Occlusion failed for {model_name}: {exc}")
+        return maps
 
     def _classify_with_gradcam(
         self,
@@ -558,8 +886,8 @@ class XRayInferenceService:
                     cam_max = float(cam.max())
                     if cam_max > 0:
                         cam = cam / cam_max
-                    heatmap_url = self._write_gradcam_overlay(
-                        cam.cpu().numpy(), base_bgr, model_name, saved_upload
+                    heatmap_url = self._write_attribution_overlay(
+                        cam.cpu().numpy(), base_bgr, model_name, saved_upload, "gradcam"
                     )
         finally:
             for handle in handles:
@@ -970,6 +1298,9 @@ class XRayInferenceService:
             confidence_score,
         )
         rendered_filename = self._save_rendered_image(rendered_image, saved_upload, model_key)
+        explainability_maps = self._detector_explainability_maps(
+            model, model_key, rendered_source, saved_upload
+        )
 
         return {
             "confidence_score": confidence_score,
@@ -977,6 +1308,7 @@ class XRayInferenceService:
             "detections": detections,
             "confirmed_detections_count": len(confirmed_detections),
             "rendered_image_url": f"/uploads/rendered/{rendered_filename}",
+            "explainability_maps": explainability_maps,
             "analysis_extras": {},
         }
 
@@ -1064,6 +1396,9 @@ class XRayInferenceService:
             confidence_score,
         )
         rendered_filename = self._save_rendered_image(rendered_image, saved_upload, model_name)
+        explainability_maps = self._detector_explainability_maps(
+            model, model_name, rendered_source, saved_upload
+        )
 
         return {
             "confidence_score": confidence_score,
@@ -1071,6 +1406,7 @@ class XRayInferenceService:
             "detections": detections,
             "confirmed_detections_count": len(confirmed_detections),
             "rendered_image_url": f"/uploads/rendered/{rendered_filename}",
+            "explainability_maps": explainability_maps,
             "analysis_extras": {},
         }
 
@@ -1095,6 +1431,7 @@ class XRayInferenceService:
         base_bgr = self._load_image_bgr(saved_upload)
 
         heatmap_url: Optional[str] = None
+        explainability_maps: list[dict[str, str]] = []
         with self._model_lock:
             started_at = time.perf_counter()
             try:
@@ -1105,6 +1442,44 @@ class XRayInferenceService:
                 print(f"Grad-CAM failed for {model_name}: {exc}")
                 with torch.inference_mode():
                     probabilities = torch.softmax(model(input_tensor), dim=1)[0]
+
+            if heatmap_url:
+                explainability_maps.append(
+                    {
+                        "key": "gradcam",
+                        "label": "Grad-CAM",
+                        "image_url": heatmap_url,
+                        "caption": "Grad-CAM: lung regions that most increased the pneumonia score.",
+                    }
+                )
+            # Two extra attribution methods, each best-effort so one failure can't break the result.
+            for key, label, method, caption in (
+                (
+                    "integrated_gradients",
+                    "Integrated Gradients",
+                    self._integrated_gradients,
+                    "Integrated Gradients: per-pixel attribution accumulated from a black baseline to this image.",
+                ),
+                (
+                    "gradient_shap",
+                    "GradientSHAP",
+                    self._gradient_shap,
+                    "GradientSHAP: SHAP-style pixel attribution averaged over several noisy baselines.",
+                ),
+                (
+                    "score_cam",
+                    "Score-CAM",
+                    self._score_cam,
+                    "Score-CAM: gradient-free class-discriminative map; regions whose activations most raise the pneumonia score.",
+                ),
+            ):
+                try:
+                    url = method(model, model_name, input_tensor, base_bgr, saved_upload)
+                    explainability_maps.append(
+                        {"key": key, "label": label, "image_url": url, "caption": caption}
+                    )
+                except Exception as exc:
+                    print(f"{label} failed for {model_name}: {exc}")
             processing_time = time.perf_counter() - started_at
 
         pneumonia_probability = float(probabilities[-1].item())
@@ -1130,10 +1505,11 @@ class XRayInferenceService:
             "confirmed_detections_count": 0,
             "rendered_image_url": f"/uploads/rendered/{rendered_filename}",
             "heatmap_image_url": heatmap_url,
+            "explainability_maps": explainability_maps,
             "analysis_extras": {
                 "pneumonia_probability": round(pneumonia_probability, 4),
                 "normal_probability": round(normal_probability, 4),
-                "explainability": "grad_cam" if heatmap_url else None,
+                "explainability": [entry["key"] for entry in explainability_maps] or None,
             },
         }
 
@@ -1240,6 +1616,7 @@ class XRayInferenceService:
                 "original_image_url": saved_upload.image_url,
                 "rendered_image_url": prediction["rendered_image_url"],
                 "heatmap_image_url": prediction.get("heatmap_image_url"),
+                "explainability_maps": prediction.get("explainability_maps", []),
                 "model_metrics": self.get_model_metrics(resolved_model_name),
             },
             "status": "completed",

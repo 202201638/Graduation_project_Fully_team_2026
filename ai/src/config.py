@@ -57,7 +57,7 @@ DEFAULT_YOLO_WEIGHTS = os.fspath(
     )
 )
 
-IMG_SIZE = 640            # detection input size (YOLOv8n / YOLO11m / Faster R-CNN)
+IMG_SIZE = 640            # detection input size (YOLOv8n / Faster R-CNN)
 CLS_IMG_SIZE = 224        # classification input size (standard for ImageNet backbones)
 
 # ImageNet normalization. Models are ImageNet-pretrained, and the backend serves

@@ -14,6 +14,13 @@ import {
 } from './shared/api.service';
 import { AuthService } from './shared/auth.service';
 
+export interface ExplainabilityMap {
+  key: string;
+  label: string;
+  image: string;
+  caption: string;
+}
+
 export interface AnalysisMetadata {
   manifest: Record<string, unknown>;
   baseline: Record<string, unknown>;
@@ -60,6 +67,9 @@ export interface AnalysisResult {
   recommendations: string;
   detections: ApiDetectionPrediction[];
   processingTime: number;
+  heatmapImage?: string;
+  explainabilityMaps: ExplainabilityMap[];
+  modelMetrics?: Record<string, unknown>;
   metadata?: AnalysisMetadata;
 }
 
@@ -231,6 +241,19 @@ export class AnalysisStateService {
       recommendations: response.result.recommendations,
       detections: response.result.detections,
       processingTime: response.processing_time,
+      heatmapImage: this.apiService.toAbsoluteUrl(response.result.heatmap_image_url) || undefined,
+      explainabilityMaps: (response.result.explainability_maps ?? [])
+        .map((entry) => ({
+          key: entry.key,
+          label: entry.label,
+          image: this.apiService.toAbsoluteUrl(entry.image_url) || '',
+          caption: entry.caption,
+        }))
+        .filter((entry) => !!entry.image),
+      modelMetrics:
+        response.result.model_metrics && typeof response.result.model_metrics === 'object'
+          ? (response.result.model_metrics as Record<string, unknown>)
+          : undefined,
       metadata: this.metadataSubject.value ?? undefined,
     };
   }
@@ -263,6 +286,7 @@ export class AnalysisStateService {
       recommendations: '',
       detections: [],
       processingTime: 0,
+      explainabilityMaps: [],
       metadata: this.metadataSubject.value ?? undefined,
     };
   }

@@ -1,1 +1,88 @@
-/* You can add global styles to this file, and also import other style files */
+:root {
+  --color-canvas: #f4f8fb;
+  --color-canvas-strong: #eaf4f6;
+  --color-surface: #ffffff;
+  --color-surface-soft: #f8fbfc;
+  --color-surface-muted: #eef5f7;
+  --color-text: #102027;
+  --color-text-muted: #5f7180;
+  --color-text-soft: #8492a0;
+  --color-border: #d9e5ea;
+  --color-border-strong: #b9cbd3;
+  --color-primary: #0f766e;
+  --color-primary-strong: #115e59;
+  --color-primary-soft: #dff5f2;
+  --color-accent: #0f6f8f;
+  --color-accent-strong: #075985;
+  --color-danger: #b42318;
+  --color-danger-soft: #fef3f2;
+  --color-warning: #b54708;
+  --color-warning-soft: #fffaeb;
+  --color-success: #067647;
+  --color-success-soft: #ecfdf3;
+  --radius-sm: 0.65rem;
+  --radius-md: 0.95rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.75rem;
+  --shadow-card: 0 18px 46px rgba(16, 32, 39, 0.08), 0 0 0 1px rgba(217, 229, 234, 0.86);
+  --shadow-elevated: 0 28px 80px rgba(16, 32, 39, 0.12), 0 0 0 1px rgba(185, 203, 211, 0.65);
+  --shadow-button: 0 14px 30px rgba(15, 118, 110, 0.24);
+  --app-gradient:
+    radial-gradient(circle at 8% 0%, rgba(15, 118, 110, 0.14), transparent 32%),
+    radial-gradient(circle at 88% 12%, rgba(15, 111, 143, 0.16), transparent 34%),
+    linear-gradient(135deg, var(--color-canvas) 0%, var(--color-canvas-strong) 52%, #fbfdfe 100%);
+  font-family: Aptos, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--color-canvas);
+  color: var(--color-text);
+  font-family: Aptos, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-width: 320px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: var(--color-primary);
+}
+
+img {
+  max-width: 100%;
+}
+
+::selection {
+  background: rgba(15, 118, 110, 0.18);
+}
+
+.clinical-focus:focus-visible,
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(15, 118, 110, 0.24);
+  outline-offset: 2px;
+}

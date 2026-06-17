@@ -1,53 +1,11 @@
 <div class="processing-page">
-  <aside class="sidebar" aria-label="Main navigation">
-    <div class="sidebar-header">
-      <div class="sidebar-logo">CX</div>
-      <div class="sidebar-title">Chest X-ray</div>
-    </div>
-
-    <nav class="sidebar-nav">
-      <a routerLink="/dashboard" class="sidebar-link">
-        <span class="sidebar-icon">&#127968;</span>
-        <span>Dashboard</span>
-      </a>
-      <a routerLink="/upload" class="sidebar-link active">
-        <span class="sidebar-icon">&#128228;</span>
-        <span>Upload X-ray</span>
-      </a>
-      <a routerLink="/records" class="sidebar-link">
-        <span class="sidebar-icon">&#128193;</span>
-        <span>Patient Records</span>
-      </a>
-    </nav>
-
-    <div class="sidebar-footer">
-      <a routerLink="/profile" class="sidebar-link">
-        <span class="sidebar-icon">&#128100;</span>
-        <span>Profile</span>
-      </a>
-      <a routerLink="/settings" class="sidebar-link">
-        <span class="sidebar-icon">&#9881;</span>
-        <span>Settings</span>
-      </a>
-      <a routerLink="/logout" class="sidebar-link sidebar-logout">
-        <span class="sidebar-icon">&#9209;</span>
-        <span>Logout</span>
-      </a>
-    </div>
-  </aside>
+  <app-navbar></app-navbar>
 
   <main class="processing-main">
     <header class="topbar">
-      <div class="topbar-left">
-        <h1 class="processing-title">Processing</h1>
-      </div>
-      <div class="topbar-right">
-        <button class="icon-button" type="button" aria-label="Search">
-          &#128269;
-        </button>
-        <button class="icon-button" type="button" aria-label="Notifications">
-          &#128276;
-        </button>
+      <div>
+        <p class="eyebrow">Model inference</p>
+        <h1 class="processing-title">Processing X-ray</h1>
       </div>
     </header>
 
@@ -58,7 +16,7 @@
           Running {{ selectedModelDisplayName }}{{ selectedModelFamily ? ' (' + selectedModelFamily + ')' : '' }}
           on the uploaded X-ray image.
         </p>
-        <div class="processing-bar">
+        <div class="processing-bar" aria-hidden="true">
           <div class="processing-bar-fill"></div>
         </div>
       </div>

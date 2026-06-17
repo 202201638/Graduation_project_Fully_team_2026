@@ -38,7 +38,7 @@ methodology.
 3. **Baseline** training with default (unoptimized) hyperparameters.
 4. **Optimization** of hyperparameters with three nature-inspired algorithms (PSO, GWO, SA).
 5. **Retrain** with the best hyperparameters found.
-6. **Explainability** - Grad-CAM for classifiers, predicted-box overlays for detectors.
+6. **Explainability** - Grad-CAM, Integrated Gradients, and GradientSHAP for classifiers; predicted-box overlays plus Eigen-CAM for detectors.
 7. **Final evaluation** - before vs after on the test split.
 8. **Demo** - single-image inference.
 
@@ -55,7 +55,6 @@ All models use ImageNet-pretrained backbones (transfer learning).
 | EfficientNet-B0 | classification | 224 | EfficientNet-B0 + Dropout->Linear(1280->2) | lr 1e-4, bs 32, dropout 0.3, wd 1e-4 |
 | YOLOv8n | detection | 640 | Ultralytics YOLOv8 nano (anchor-free) | lr 1e-3, bs 16, wd 5e-4 |
 | Faster R-CNN | detection | 640 | ResNet50-FPN + FastRCNNPredictor(2) | lr 5e-3, bs 4, wd 5e-4, SGD m=0.9 |
-| YOLO11m | detection | 640 | Ultralytics YOLO11 medium (anchor-free) | lr 1e-3, bs 8, wd 5e-4 |
 
 The optimized hyperparameters per model (and the per-algorithm results) are recorded in each
 report's `phase4_optimization` and `final_hyperparameters`.
@@ -63,7 +62,7 @@ report's `phase4_optimization` and `final_hyperparameters`.
 ### Search spaces (phase 4)
 
 - **Classification**: lr [1e-5, 1e-3], batch_size [16, 48], dropout [0.1, 0.6], weight_decay [1e-7, 1e-2].
-- **YOLOv8n / YOLO11m**: lr [1e-4, 5e-3], batch_size [8, 24] (8-16 for YOLO11m), weight_decay [1e-5, 5e-3], anchor_size [8, 32].
+- **YOLOv8n**: lr [1e-4, 5e-3], batch_size [8, 24], weight_decay [1e-5, 5e-3], anchor_size [8, 32].
 - **Faster R-CNN**: lr [5e-4, 1e-2], batch_size [2, 6], weight_decay [1e-5, 5e-3].
 
 ## 5. Training methodology (what prevents over/underfitting)
@@ -79,8 +78,6 @@ report's `phase4_optimization` and `final_hyperparameters`.
   checkpoint is restored before final evaluation.
 - **Mixed precision (AMP)** on GPU for speed/memory.
 - **Transfer learning**: backbone is frozen for the first 1-2 epochs (head warmup), then unfrozen.
-- **YOLO11m**: trained through the Ultralytics pipeline (mosaic/HSV/flip augmentation, cosine LR,
-  built-in early stopping); medium model run at batch 8 to fit a 16GB GPU.
 
 Each report includes the per-epoch `history` (train/val loss and metric) so the train-vs-val
 curves can be shown to argue the models are neither over- nor under-fit.
@@ -108,7 +105,7 @@ supports a PSO-vs-GWO-vs-SA comparison in the discussion.
 
 ## 8. Results: measured performance and model selection
 
-Five of the six models have been run end-to-end; **YOLO11m is pending** (it replaced RetinaNet) and will be added here.
+All five models have been run end-to-end.
 All numbers are on the held-out **test** split (20%, patient-wise, seed 42; 4,135 normal / 1,202
 pneumonia). "Deployed" marks the checkpoint shipped to the web app.
 
@@ -131,7 +128,6 @@ pneumonia). "Deployed" marks the checkpoint shipped to the web app.
 | YOLOv8n | optimized | 0.340 | 0.137 | 0.377 | 0.404 | 3.0M | |
 | Faster R-CNN | baseline | **0.381** | 0.124 | 0.812 | - | 41.3M | **yes** |
 | Faster R-CNN | optimized | 0.175 | 0.046 | 0.792 | - | 41.3M | |
-| YOLO11m | - | pending | pending | pending | - | ~20M | pending |
 
 ### 8.3 Key finding: optimization vs a well-tuned baseline
 
@@ -154,8 +150,9 @@ what guarantees we never ship a regression.
 - **Best classifier: EfficientNet-B0** (AUC 0.886, F1 0.651, only 4.0M parameters - the smallest
   and fastest, ideal for serving).
 - **Best detector: Faster R-CNN** (mAP@0.5 0.381, recall 0.812) - chosen as the web app's
-  **default** because bounding boxes give the clearest localization for a clinician. Grad-CAM
-  heatmaps are generated for the classifier options to add soft localization.
+  **default** because bounding boxes give the clearest localization for a clinician. Grad-CAM,
+  Integrated Gradients, and GradientSHAP heatmaps are generated for the classifier options, and
+  Eigen-CAM for the detectors, to add soft localization (see 8.6).
 
 ### 8.5 Calibration against published work (defensibility)
 
@@ -172,6 +169,36 @@ what guarantees we never ship a regression.
 Conclusion: the models sit at the realistic published ceiling for this dataset; the remaining gap
 to "perfect" reflects dataset difficulty and label noise, not a training defect. A further
 hyperparameter re-run is not expected to move the headline metrics materially.
+
+### 8.6 Explainability (XAI)
+
+Every model exposes visual evidence for its output, generated in phase 6 and surfaced live in the
+web app on each upload. All methods are implemented natively (torch / numpy / cv2), so they add no
+heavy dependencies and run in a few seconds on CPU (instant on GPU).
+
+- **Classifiers (ResNet50, DenseNet121, EfficientNet-B0)** - four saliency maps, each targeting the
+  pneumonia class (index 1):
+  - **Grad-CAM** - gradient-weighted activations of the last conv block; coarse "where the model looked".
+  - **Integrated Gradients** - per-pixel attribution accumulated along a path from a black baseline to
+    the image (axiomatic, sharper than Grad-CAM).
+  - **GradientSHAP** - the gradient-based SHAP estimator; (input - baseline) * gradient averaged over
+    several noisy, randomly interpolated samples.
+  - **Score-CAM** - gradient-free, class-discriminative CAM: each activation channel is upsampled,
+    used to mask the input, and weighted by the resulting pneumonia score (top-K channels for speed).
+    A different paradigm (perturbation/activation-masking) from the three gradient methods above.
+- **Detectors (YOLOv8n, Faster R-CNN)** - the predicted bounding boxes are the primary
+  explanation, complemented by two gradient-free maps:
+  - **Eigen-CAM** - the first principal component of a backbone feature map (activation-based,
+    target-free, one forward pass).
+  - **Occlusion sensitivity** - blank each cell of a coarse grid and measure the drop in the top
+    detection confidence; larger drops mark regions the detection depended on. Uniform across YOLO
+    and Faster R-CNN.
+  IG and GradientSHAP are not used on detectors because they require a single differentiable class
+  score that the detection heads (NMS, ultralytics wrapper) do not expose cleanly; Eigen-CAM and
+  Occlusion are the standard fast analogues.
+
+Caveat for the defense: these are saliency methods (where the network responded), not causal or
+clinical segmentations of disease. They are decision support, not a diagnosis.
 
 ## 9. Limitations and future work
 

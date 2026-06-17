@@ -476,6 +476,9 @@ async def delete_analysis(
     result_data = analysis.get("result") or {}
     _cleanup_image_url(result_data.get("rendered_image_url"))
     _cleanup_image_url(result_data.get("heatmap_image_url"))
+    for explainability_map in result_data.get("explainability_maps") or []:
+        if isinstance(explainability_map, dict):
+            _cleanup_image_url(explainability_map.get("image_url"))
 
     await db.xray_analyses.delete_one({"_id": analysis["_id"]})
     return {"message": "Analysis deleted successfully"}

@@ -7,17 +7,11 @@
         <div class="breadcrumb">
           <span class="breadcrumb-root">Dashboard</span>
           <span class="breadcrumb-separator">/</span>
-          <span class="breadcrumb-current">Chest X-ray</span>
+          <span class="breadcrumb-current">Clinical overview</span>
         </div>
       </div>
 
       <div class="topbar-right">
-        <button class="icon-button" type="button" aria-label="Search">
-          🔍
-        </button>
-        <button class="icon-button" type="button" aria-label="Notifications">
-          🔔
-        </button>
         <button
           class="avatar"
           type="button"
@@ -32,9 +26,10 @@
     <section class="dashboard-content">
       <header class="dashboard-header">
         <div>
+          <p class="eyebrow">Doctor workspace</p>
           <h1 class="dashboard-title">Welcome, {{ displayName }}</h1>
           <p class="dashboard-subtitle">
-            Here's a quick overview of your Mediscan AI activity.
+            Monitor saved X-ray analyses and continue patient review from one clinical dashboard.
           </p>
         </div>
       </header>
@@ -62,8 +57,11 @@
 
       <section class="activity-section" aria-label="Recent activity">
         <header class="section-header">
-          <h2 class="section-title">Recent Activity</h2>
-          <button class="link-button" type="button" routerLink="/records">View All Activity</button>
+          <div>
+            <p class="section-kicker">Recent activity</p>
+            <h2 class="section-title">Latest saved analyses</h2>
+          </div>
+          <button class="link-button" type="button" routerLink="/records">View all</button>
         </header>
 
         <div class="activity-list" *ngIf="activities.length; else emptyActivity">
@@ -75,7 +73,7 @@
               <div class="activity-name">{{ activity.name }}</div>
               <div class="activity-meta">
                 <span class="activity-date">{{ activity.timestamp }}</span>
-                <span class="activity-dot">•</span>
+                <span class="activity-dot">&middot;</span>
                 <span class="activity-diagnosis">
                   {{ activity.diagnosis }} (Confidence: {{ activity.confidence }})
                 </span>

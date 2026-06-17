@@ -18,34 +18,34 @@ interface IntroSlide {
 export class Intro implements OnInit {
   slides: IntroSlide[] = [
     {
-      icon: '🏥',
+      icon: 'CL',
       title: 'Welcome to Mediscan AI',
       subtitle: 'Your smart assistant for faster, more confident chest X-ray diagnosis.',
     },
     {
-      icon: '⚡',
+      icon: 'AI',
       title: 'Fast AI Analysis',
       subtitle: 'Upload chest X-rays and receive AI-supported pneumonia scores in seconds.',
     },
     {
-      icon: '🎯',
-      title: 'High-Accuracy Insights',
-      subtitle: 'See confidence scores and visual heatmaps that highlight suspicious regions.',
+      icon: 'ROI',
+      title: 'Detection Insights',
+      subtitle: 'See confidence scores and localization boxes when the selected model supports detection.',
     },
     {
-      icon: '📁',
+      icon: 'EHR',
       title: 'Smart Patient Records',
       subtitle: 'Keep scans, AI results, and patient history together in a clean, secure dashboard.',
     },
     {
-      icon: '🤝',
+      icon: 'DR',
       title: 'Built for Doctors',
       subtitle: 'Designed to support your clinical judgement, not replace it.',
     },
     {
-      icon: '🔐',
+      icon: 'SEC',
       title: 'Secure & Private',
-      subtitle: 'Data is handled with care and can be anonymized for safer collaboration.',
+      subtitle: 'Use authenticated history and keep each doctor account scoped to its own patients.',
     },
   ];
 
@@ -67,7 +67,7 @@ export class Intro implements OnInit {
         }
       }
     } catch {
-      // Ignore storage errors and show intro normally
+      // Ignore storage errors and show intro normally.
     }
   }
 
@@ -92,6 +92,7 @@ export class Intro implements OnInit {
     if (index < 0 || index >= this.slides.length) {
       return;
     }
+
     this.currentIndex = index;
   }
 
@@ -101,7 +102,7 @@ export class Intro implements OnInit {
         window.localStorage.setItem(this.storageKey, 'true');
       }
     } catch {
-      // Ignore storage errors
+      // Ignore storage errors.
     }
 
     this.router.navigateByUrl('/welcome');
