@@ -184,9 +184,24 @@
     order: 3;
     width: 100%;
     justify-content: flex-start;
+    flex-wrap: nowrap;
     overflow-x: auto;
-    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
     padding-bottom: 0.1rem;
+    padding-right: 0.4rem;
+    scroll-snap-type: x proximity;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 26px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 26px), transparent);
+  }
+
+  .navbar-menu::-webkit-scrollbar {
+    display: none;
+  }
+
+  .navbar-menu .navbar-link {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
   }
 }
 

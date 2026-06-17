@@ -37,13 +37,13 @@ function center(s, o = {}) {
 function fig(file, n, caption, wPx, hPx) {
   return [
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 120, after: 40 }, children: [new ImageRun({ type: "png", data: fs.readFileSync(FIG + file), transformation: { width: wPx, height: hPx }, altText: { title: caption, description: caption, name: file } })] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 140 }, children: [txt(`Figure ${n}. ${caption}`, { italics: true, size: 20 })] }),
+    new Paragraph({ style: "FigCaption", children: [txt(`Figure ${n}. ${caption}`, { italics: true, size: 20 })] }),
   ];
 }
 function imgAbs(absPath, n, caption, wPx, hPx, type = "png") {
   return [
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 120, after: 40 }, children: [new ImageRun({ type, data: fs.readFileSync(absPath), transformation: { width: wPx, height: hPx }, altText: { title: caption, description: caption, name: caption } })] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 140 }, children: [txt(`Figure ${n}. ${caption}`, { italics: true, size: 20 })] }),
+    new Paragraph({ style: "FigCaption", children: [txt(`Figure ${n}. ${caption}`, { italics: true, size: 20 })] }),
   ];
 }
 const BD = { style: BorderStyle.SINGLE, size: 1, color: "BBBBBB" };
@@ -58,7 +58,7 @@ function table(headers, rows, widths, capN, caption) {
   const body = rows.map((r) => new TableRow({ children: r.map((c, i) => cell(c, colW[i], { size: 20 })) }));
   const t = new Table({ width: { size: colW.reduce((a, b) => a + b, 0), type: WidthType.DXA }, columnWidths: colW, rows: [head, ...body] });
   const out = [t];
-  if (caption) out.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60, after: 160 }, children: [txt(`Table ${capN}. ${caption}`, { italics: true, size: 20 })] }));
+  if (caption) out.push(new Paragraph({ style: "TblCaption", children: [txt(`Table ${capN}. ${caption}`, { italics: true, size: 20 })] }));
   return out;
 }
 
@@ -105,8 +105,14 @@ const absAr = [
 // ---------- TOC ----------
 const toc = [
   H1("Table of Contents"),
-  P("This table of contents is generated automatically. In Microsoft Word, right-click it and choose Update Field to populate page numbers. Figures and tables are captioned throughout the document.", { run: { italics: true, size: 20 } }),
+  P("This table of contents, list of figures, and list of tables are generated automatically. In Microsoft Word, select all (Ctrl+A) and press F9, or right-click each and choose Update Field, to populate page numbers.", { run: { italics: true, size: 20 } }),
   new TableOfContents("Table of Contents", { hyperlink: true, headingStyleRange: "1-3" }),
+  PB(),
+  H1("List of Figures"),
+  new TableOfContents("List of Figures", { hyperlink: true, stylesWithLevels: [{ styleName: "FigCaption", level: 1 }] }),
+  PB(),
+  H1("List of Tables"),
+  new TableOfContents("List of Tables", { hyperlink: true, stylesWithLevels: [{ styleName: "TblCaption", level: 1 }] }),
   PB(),
 ];
 
@@ -405,7 +411,7 @@ const ap2 = [
 ];
 
 const children = [
-  ...cover, coverTable, ...cover2,
+  ...cover, ...coverTable, ...cover2,
   ...absEn, ...absAr,
   ...toc,
   ...ch1, ...ch2, ...ch3, ...ch4, ...ch5, ...ch6, ...ch7, ...ch8, ...ch9,
@@ -419,8 +425,10 @@ const doc = new Document({
     default: { document: { run: { font: TNR, size: 24 }, paragraph: { spacing: { line: 360, lineRule: "auto" } } } },
     paragraphStyles: [
       { id: "Heading1", name: "Heading 1", basedOn: "Normal", next: "Normal", quickFormat: true, run: { size: 36, bold: true, font: TNR, color: NAVY }, paragraph: { spacing: { before: 240, after: 160 }, outlineLevel: 0, keepNext: true } },
-      { id: "Heading2", name: "Heading 2", basedOn: "Normal", next: "Normal", quickFormat: true, run: { size: 30, bold: true, font: TNR, color: NAVY }, paragraph: { spacing: { before: 180, after: 120 }, outlineLevel: 1, keepNext: true } },
-      { id: "Heading3", name: "Heading 3", basedOn: "Normal", next: "Normal", quickFormat: true, run: { size: 26, bold: true, font: TNR }, paragraph: { spacing: { before: 140, after: 100 }, outlineLevel: 2, keepNext: true } },
+      { id: "Heading2", name: "Heading 2", basedOn: "Normal", next: "Normal", quickFormat: true, run: { size: 32, bold: true, font: TNR, color: NAVY }, paragraph: { spacing: { before: 180, after: 120 }, outlineLevel: 1, keepNext: true } },
+      { id: "Heading3", name: "Heading 3", basedOn: "Normal", next: "Normal", quickFormat: true, run: { size: 28, bold: true, font: TNR }, paragraph: { spacing: { before: 140, after: 100 }, outlineLevel: 2, keepNext: true } },
+      { id: "FigCaption", name: "FigCaption", basedOn: "Normal", next: "Normal", quickFormat: false, run: { size: 20, italics: true, font: TNR }, paragraph: { alignment: AlignmentType.CENTER, spacing: { before: 40, after: 140 } } },
+      { id: "TblCaption", name: "TblCaption", basedOn: "Normal", next: "Normal", quickFormat: false, run: { size: 20, italics: true, font: TNR }, paragraph: { alignment: AlignmentType.CENTER, spacing: { before: 60, after: 160 } } },
     ],
   },
   numbering: {
