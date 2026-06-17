@@ -1,0 +1,171 @@
+{
+  "model": "yolo",
+  "architecture": {
+    "family": "detection",
+    "base": "YOLOv8n (Ultralytics)",
+    "head": "anchor-free detect head",
+    "input_size": 640,
+    "primary_metric": "map50"
+  },
+  "dataset": {
+    "name": "RSNA Pneumonia Detection Challenge",
+    "seed": 42
+  },
+  "config": {
+    "epochs": 35,
+    "optimized": true
+  },
+  "phase3_baseline": {
+    "hyperparameters": {
+      "lr": 0.001,
+      "batch_size": 16,
+      "weight_decay": 0.0005,
+      "anchor_size": 16
+    },
+    "metrics": {
+      "model": "yolo",
+      "task": "detection",
+      "map50": 0.345974128735125,
+      "map": 0.137979350831701,
+      "recall": 0.382275825904562,
+      "precision": 0.395980138758583,
+      "eval_split": "test",
+      "val_metrics": {
+        "map50": 0.361062363858916,
+        "map": 0.144565832451406,
+        "recall": 0.396534148827727,
+        "precision": 0.426162655224774
+      },
+      "model_path": "/kaggle/working/runs/phase3_yolo/weights/best.pt",
+      "results_csv": "/kaggle/working/runs/phase3_yolo/results.csv",
+      "num_parameters": 3005843,
+      "hyperparameters": {
+        "epochs": 35,
+        "lr0": 0.001,
+        "batch_size": 16,
+        "weight_decay": 0.0005,
+        "img_size": 640,
+        "patience": 10,
+        "optimizer": "SGD (ultralytics auto)",
+        "lr_scheduler": "cosine (cos_lr=True)",
+        "augmentation": "mosaic, hsv, translate, scale, fliplr (close_mosaic=10)",
+        "box": 7.5,
+        "cls": 0.5,
+        "dfl": 1.5
+      }
+    }
+  },
+  "phase4_optimization": {
+    "task": "detection",
+    "score_name": "map50",
+    "best_score": 0.0385197717365801,
+    "best_hyperparameters": {
+      "lr": 0.00451012561546269,
+      "batch_size": 17,
+      "weight_decay": 0.00179778997432942,
+      "anchor_size": 21
+    },
+    "algorithms": {
+      "PSO": {
+        "best_params": {
+          "lr": 0.00451012561546269,
+          "batch_size": 17,
+          "weight_decay": 0.00179778997432942,
+          "anchor_size": 21
+        },
+        "best_score": 0.0385197717365801
+      },
+      "GWO": {
+        "best_params": {
+          "lr": 0.00354784847621105,
+          "batch_size": 9,
+          "weight_decay": 0.0045859246558836,
+          "anchor_size": 13
+        },
+        "best_score": 0.0242965220090141
+      },
+      "SA": {
+        "best_params": {
+          "lr": 0.00267041230164921,
+          "batch_size": 18,
+          "weight_decay": 0.00118515365905266,
+          "anchor_size": 13
+        },
+        "best_score": 0.0132545722449286
+      }
+    },
+    "search_budget": {
+      "population": 3,
+      "iterations": 2,
+      "proxy_epochs": 1,
+      "proxy_train_batches": 60,
+      "proxy_eval_batches": 30,
+      "yolo_fraction": 0.15
+    }
+  },
+  "final_hyperparameters": {
+    "lr": 0.00451012561546269,
+    "batch_size": 17,
+    "weight_decay": 0.00179778997432942,
+    "anchor_size": 21
+  },
+  "phase5_final": {
+    "hyperparameters": {
+      "lr": 0.00451012561546269,
+      "batch_size": 17,
+      "weight_decay": 0.00179778997432942,
+      "anchor_size": 21
+    },
+    "metrics": {
+      "model": "yolo",
+      "task": "detection",
+      "map50": 0.339556000525401,
+      "map": 0.136632963890717,
+      "recall": 0.37650760356581,
+      "precision": 0.403951729406812,
+      "eval_split": "test",
+      "val_metrics": {
+        "map50": 0.357871079129232,
+        "map": 0.143888984951387,
+        "recall": 0.393985728848114,
+        "precision": 0.423041558019683
+      },
+      "model_path": "/kaggle/working/runs/phase5_yolo/weights/best.pt",
+      "results_csv": "/kaggle/working/runs/phase5_yolo/results.csv",
+      "num_parameters": 3005843,
+      "hyperparameters": {
+        "epochs": 35,
+        "lr0": 0.00451012561546269,
+        "batch_size": 17,
+        "weight_decay": 0.00179778997432942,
+        "img_size": 640,
+        "patience": 10,
+        "optimizer": "SGD (ultralytics auto)",
+        "lr_scheduler": "cosine (cos_lr=True)",
+        "augmentation": "mosaic, hsv, translate, scale, fliplr (close_mosaic=10)",
+        "box": 7.5,
+        "cls": 0.5,
+        "dfl": 1.5
+      }
+    }
+  },
+  "phase6_explainability": {
+    "type": "detection_overlay",
+    "image": "/kaggle/working/artifacts/explainability/yolo_explain.png",
+    "boxes_drawn": 0,
+    "source_image": "/kaggle/working/yolo_dataset/test/images/001916b8-3d30-4935-a5d1-8eaddb1646cd.png"
+  },
+  "phase7_comparison": {
+    "metric": "map50",
+    "before_optimization": 0.345974128735125,
+    "after_optimization": 0.339556000525401,
+    "eval_split": "test"
+  },
+  "phase8_demo": {
+    "model": "yolo",
+    "task": "detection",
+    "boxes": 0,
+    "output_image": "/kaggle/working/artifacts/yolo_demo.png",
+    "input_image": "/kaggle/working/yolo_dataset/test/images/001916b8-3d30-4935-a5d1-8eaddb1646cd.png"
+  }
+}

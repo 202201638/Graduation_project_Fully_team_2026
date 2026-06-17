@@ -1,0 +1,256 @@
+{
+  "model": "fasterrcnn",
+  "architecture": {
+    "family": "detection",
+    "base": "Faster R-CNN ResNet50-FPN (pretrained)",
+    "head": "FastRCNNPredictor(2 classes)",
+    "input_size": 640,
+    "primary_metric": "map50"
+  },
+  "dataset": {
+    "name": "RSNA Pneumonia Detection Challenge",
+    "seed": 42
+  },
+  "config": {
+    "epochs": 12,
+    "optimized": true
+  },
+  "phase3_baseline": {
+    "hyperparameters": {
+      "lr": 0.005,
+      "batch_size": 4,
+      "weight_decay": 0.0005
+    },
+    "metrics": {
+      "model": "fasterrcnn",
+      "task": "detection",
+      "recall": 0.812270582066072,
+      "map50": 0.381484687328339,
+      "map": 0.124456621706486,
+      "eval_split": "test",
+      "best_val_metric": 0.423053652048111,
+      "best_val_metric_name": "map50",
+      "best_epoch": 5,
+      "epochs_ran": 8,
+      "history": [
+        {
+          "epoch": 1,
+          "train_loss": 0.0814292425044414,
+          "val_recall": 0.753312945973496,
+          "val_map50": 0.18644492328167,
+          "val_map": 0.0515629723668098,
+          "lr": 0.00493330332519252
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.0785384220659612,
+          "val_recall": 0.889398572884811,
+          "val_map50": 0.39427375793457,
+          "val_map": 0.133025392889977,
+          "lr": 0.0046986595448427
+        },
+        {
+          "epoch": 3,
+          "train_loss": 0.074747093366637,
+          "val_recall": 0.863404689092763,
+          "val_map50": 0.390788525342941,
+          "val_map": 0.128158956766129,
+          "lr": 0.00431103064116377
+        },
+        {
+          "epoch": 4,
+          "train_loss": 0.0746555773231259,
+          "val_recall": 0.872579001019368,
+          "val_map50": 0.371142476797104,
+          "val_map": 0.126789003610611,
+          "lr": 0.00379738825502402
+        },
+        {
+          "epoch": 5,
+          "train_loss": 0.0742402640811154,
+          "val_recall": 0.840978593272171,
+          "val_map50": 0.423053652048111,
+          "val_map": 0.138810977339745,
+          "lr": 0.00319347218250743
+        },
+        {
+          "epoch": 6,
+          "train_loss": 0.0741747304552128,
+          "val_recall": 0.867482161060143,
+          "val_map50": 0.37005615234375,
+          "val_map": 0.135907977819443,
+          "lr": 0.00254130356101613
+        },
+        {
+          "epoch": 7,
+          "train_loss": 0.0722831411310832,
+          "val_recall": 0.906218144750255,
+          "val_map50": 0.407367914915085,
+          "val_map": 0.145141929388046,
+          "lr": 0.00188626099280997
+        },
+        {
+          "epoch": 8,
+          "train_loss": 0.0712639201745709,
+          "val_recall": 0.891946992864424,
+          "val_map50": 0.416453927755356,
+          "val_map": 0.146253436803818,
+          "lr": 0.00127392305248816
+        }
+      ],
+      "model_path": "/kaggle/working/artifacts/checkpoints/fasterrcnn_baseline.pt",
+      "num_parameters": 41299161,
+      "hyperparameters": {
+        "epochs": 12,
+        "lr": 0.005,
+        "batch_size": 4,
+        "weight_decay": 0.0005,
+        "momentum": 0.9,
+        "img_size": 640,
+        "optimizer": "SGD",
+        "lr_scheduler": "LinearLR warmup + CosineAnnealingLR",
+        "freeze_epochs": 1,
+        "grad_clip": null,
+        "patience": 3,
+        "augmentation": "train-only: box-aware hflip + photometric jitter"
+      }
+    }
+  },
+  "phase4_optimization": {
+    "task": "detection",
+    "score_name": "map50",
+    "best_score": 0.224032640457153,
+    "best_hyperparameters": {
+      "lr": 0.00987335543110332,
+      "batch_size": 5,
+      "weight_decay": 0.0036999248666712
+    },
+    "algorithms": {
+      "PSO": {
+        "best_params": {
+          "lr": 0.00987335543110332,
+          "batch_size": 5,
+          "weight_decay": 0.0036999248666712
+        },
+        "best_score": 0.224032640457153
+      },
+      "GWO": {
+        "best_params": {
+          "lr": 0.00502577901594639,
+          "batch_size": 5,
+          "weight_decay": 0.00323338995966015
+        },
+        "best_score": 0.121838517487049
+      },
+      "SA": {
+        "best_params": {
+          "lr": 0.00540353079093658,
+          "batch_size": 2,
+          "weight_decay": 0.00001
+        },
+        "best_score": 0.0792079195380211
+      }
+    },
+    "search_budget": {
+      "population": 3,
+      "iterations": 2,
+      "proxy_epochs": 1,
+      "proxy_train_batches": 60,
+      "proxy_eval_batches": 30,
+      "yolo_fraction": null
+    }
+  },
+  "final_hyperparameters": {
+    "lr": 0.00987335543110332,
+    "batch_size": 5,
+    "weight_decay": 0.0036999248666712
+  },
+  "phase5_final": {
+    "hyperparameters": {
+      "lr": 0.00987335543110332,
+      "batch_size": 5,
+      "weight_decay": 0.0036999248666712
+    },
+    "metrics": {
+      "model": "fasterrcnn",
+      "task": "detection",
+      "recall": 0.791819611955952,
+      "map50": 0.175345912575722,
+      "map": 0.046020582318306,
+      "eval_split": "test",
+      "best_val_metric": 0.178481087088585,
+      "best_val_metric_name": "map50",
+      "best_epoch": 1,
+      "epochs_ran": 4,
+      "history": [
+        {
+          "epoch": 1,
+          "train_loss": 0.0860854261456614,
+          "val_recall": 0.82059123343527,
+          "val_map50": 0.178481087088585,
+          "val_map": 0.0480969920754433,
+          "lr": 0.00975020583735571
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.0920525187092887,
+          "val_recall": 0.646279306829766,
+          "val_map50": 0.121473349630833,
+          "val_map": 0.031976331025362,
+          "lr": 0.0092946006005958
+        },
+        {
+          "epoch": 3,
+          "train_loss": 0.0920034201417178,
+          "val_recall": 0.63914373088685,
+          "val_map50": 0.14884477853775,
+          "val_map": 0.0383688844740391,
+          "lr": 0.00853417370202221
+        },
+        {
+          "epoch": 4,
+          "train_loss": 0.0898581199267769,
+          "val_recall": 0.838939857288481,
+          "val_map50": 0.149306789040566,
+          "val_map": 0.0402397476136684,
+          "lr": 0.00752211437811871
+        }
+      ],
+      "model_path": "/kaggle/working/artifacts/checkpoints/fasterrcnn.pt",
+      "num_parameters": 41299161,
+      "hyperparameters": {
+        "epochs": 12,
+        "lr": 0.00987335543110332,
+        "batch_size": 5,
+        "weight_decay": 0.0036999248666712,
+        "momentum": 0.9,
+        "img_size": 640,
+        "optimizer": "SGD",
+        "lr_scheduler": "LinearLR warmup + CosineAnnealingLR",
+        "freeze_epochs": 1,
+        "grad_clip": null,
+        "patience": 3,
+        "augmentation": "train-only: box-aware hflip + photometric jitter"
+      }
+    }
+  },
+  "phase6_explainability": {
+    "type": "detection_overlay",
+    "image": "/kaggle/working/artifacts/explainability/fasterrcnn_explain.png",
+    "boxes_drawn": 0,
+    "source_image": "/kaggle/working/yolo_dataset/test/images/001916b8-3d30-4935-a5d1-8eaddb1646cd.png"
+  },
+  "phase7_comparison": {
+    "metric": "map50",
+    "before_optimization": 0.381484687328339,
+    "after_optimization": 0.175345912575722,
+    "eval_split": "test"
+  },
+  "phase8_demo": {
+    "model": "fasterrcnn",
+    "task": "detection",
+    "boxes": 0,
+    "output_image": "/kaggle/working/artifacts/fasterrcnn_demo.png",
+    "input_image": "/kaggle/working/yolo_dataset/test/images/001916b8-3d30-4935-a5d1-8eaddb1646cd.png"
+  }
+}

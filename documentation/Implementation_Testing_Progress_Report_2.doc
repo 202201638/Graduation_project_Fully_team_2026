@@ -1,0 +1,230 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset="utf-8">
+<title>Implementation & Testing Progress Report 2</title>
+<style>
+    body { font-family: "Times New Roman", Times, serif; font-size: 12pt; }
+    h1, h2, h3 { font-family: Arial, sans-serif; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th, td { border: 1px solid black; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+</style>
+</head>
+<body>
+
+<h2 style="text-align: center;">Implementation & Testing Progress Report 2 (Week 12)</h2>
+
+<p><strong>Course:</strong> CSAI 499 – Senior Project<br>
+<strong>Deliverable:</strong> Implementation & Testing Progress Report 2<br>
+<strong>Team Number:</strong> 14<br>
+<strong>Team Members (Name – Program):</strong><br>
+- Mo'men (DSAI)<br>
+- Sara (SWD)<br>
+- Omar (IT)<br>
+<strong>Supervisor:</strong> Dr. Doaa<br>
+<strong>Date:</strong> May 2, 2026</p>
+
+<h3>1. Project Status & Progress</h3>
+<p><strong>Brief summary of progress since MVP:</strong><br>
+Since the MVP, we finally got the ML models fully talking to our backend. We swapped out the mock data for actual X-ray processing via FastAPI. MongoDB is now fully hooked up to store patient records and analysis history, and the Angular frontend properly uses JWTs to keep everything secure. We also spent a good amount of time fixing the model cold-start delay.</p>
+
+<p><strong>Estimated % completion:</strong> ~85%</p>
+
+<p><strong>Key milestones achieved:</strong></p>
+<ul>
+    <li>Deployed Faster R-CNN for bounding box rendering on the backend.</li>
+    <li>Finished patient CRUD operations and the frontend dashboard visualizations.</li>
+    <li>Built a Singleton Warmup for the AI service so the model stays in RAM.</li>
+</ul>
+
+<p><strong>Evidence:</strong></p>
+<ul>
+    <li>GitHub commits & PRs for the backend/frontend integration (e.g., PR #58, #60).</li>
+    <li>Screenshots of the X-ray result page showing the rendered boxes and confidence scores.</li>
+</ul>
+
+<p><strong>Risks / Delays:</strong></p>
+<ul>
+    <li>We ran into a memory spike issue when trying to load multiple models at once, which pushed back our load testing schedule a bit. We're looking into Dockerizing the app soon to cap resource usage.</li>
+</ul>
+
+<h3>2. Feature Completion</h3>
+<table>
+    <tr>
+        <th>Feature Description</th>
+        <th>Owner (Name + Program)</th>
+        <th>Status</th>
+        <th>Evidence</th>
+    </tr>
+    <tr>
+        <td>JWT login system & Auth API</td>
+        <td>Sara (SWD)</td>
+        <td>Done</td>
+        <td>PR #45</td>
+    </tr>
+    <tr>
+        <td>Patient Management (CRUD)</td>
+        <td>Sara (SWD)</td>
+        <td>Done</td>
+        <td>PR #52</td>
+    </tr>
+    <tr>
+        <td>X-ray Inference Pipeline (FastAPI)</td>
+        <td>Mo'men (DSAI)</td>
+        <td>Done</td>
+        <td>PR #60</td>
+    </tr>
+    <tr>
+        <td>AI Model Promotion Scripts</td>
+        <td>Mo'men (DSAI)</td>
+        <td>Done</td>
+        <td>PR #68</td>
+    </tr>
+    <tr>
+        <td>Frontend Angular Dashboard</td>
+        <td>Omar (IT)</td>
+        <td>Done</td>
+        <td>PR #71</td>
+    </tr>
+</table>
+
+<h3>3. Remaining Tasks & Planning</h3>
+<table>
+    <tr>
+        <th>Task Description</th>
+        <th>Owner</th>
+        <th>Priority</th>
+        <th>Deadline</th>
+        <th>Status</th>
+    </tr>
+    <tr>
+        <td>Optimize NMS (Non-Maximum Suppression)</td>
+        <td>Mo'men (DSAI)</td>
+        <td>High</td>
+        <td>Week 13</td>
+        <td>In Progress</td>
+    </tr>
+    <tr>
+        <td>System Load Testing</td>
+        <td>Omar (IT)</td>
+        <td>Medium</td>
+        <td>Week 13</td>
+        <td>Pending</td>
+    </tr>
+    <tr>
+        <td>Cloud Deployment (Docker)</td>
+        <td>Sara (SWD)</td>
+        <td>High</td>
+        <td>Week 14</td>
+        <td>Pending</td>
+    </tr>
+</table>
+
+<h3>4. Testing & Quality Evidence</h3>
+<h4>4.1 Test Coverage</h4>
+<table>
+    <tr>
+        <th>Component</th>
+        <th>Test Type</th>
+        <th>Coverage %</th>
+        <th>Notes</th>
+    </tr>
+    <tr>
+        <td>Auth & Patients API</td>
+        <td>Integration</td>
+        <td>85%</td>
+        <td>Handled invalid tokens and missing data</td>
+    </tr>
+    <tr>
+        <td>AI Inference Service</td>
+        <td>Unit</td>
+        <td>90%</td>
+        <td>Tested model loading and the singleton warmup</td>
+    </tr>
+    <tr>
+        <td>Frontend UI</td>
+        <td>E2E</td>
+        <td>75%</td>
+        <td>Verified the main upload to result flow</td>
+    </tr>
+</table>
+
+<h4>4.2 Testing Depth</h4>
+<ul>
+    <li><strong>Edge cases tested:</strong> We tested uploading corrupted images, files larger than 10MB, and trying to access patient records without a valid JWT token.</li>
+    <li><strong>Failure scenarios:</strong> We simulated MongoDB timeouts and inference crashes to make sure the backend throws a clean 500 error instead of hanging the UI.</li>
+    <li><strong>Example inputs/outputs:</strong><br>
+        <em>Input:</em> Raw chest X-ray image (.jpg).<br>
+        <em>Output:</em> Rendered image with bounding boxes drawn over pneumonia regions, returning a JSON response with an 85% confidence score.
+    </li>
+</ul>
+
+<h4>4.3 Bugs & Issues</h4>
+<table>
+    <tr>
+        <th>Bug ID</th>
+        <th>Description</th>
+        <th>Severity</th>
+        <th>Status</th>
+        <th>Fix</th>
+    </tr>
+    <tr>
+        <td>B1</td>
+        <td>Model took ~15s to load on every request</td>
+        <td>High</td>
+        <td>Fixed</td>
+        <td>Implemented a Singleton Warmup so it stays in RAM</td>
+    </tr>
+    <tr>
+        <td>B2</td>
+        <td>AI drew multiple overlapping boxes on the same spot</td>
+        <td>Medium</td>
+        <td>Fixed</td>
+        <td>Added Non-Maximum Suppression (NMS) logic</td>
+    </tr>
+    <tr>
+        <td>B3</td>
+        <td>Frontend lost patient context on page refresh</td>
+        <td>High</td>
+        <td>Fixed</td>
+        <td>Updated Angular analysis-state service to persist data</td>
+    </tr>
+</table>
+
+<h4>4.4 Fix Validation</h4>
+<p>For the model loading issue (B1), we ran the backend locally using uvicorn and timed the requests. The first request took about 6 seconds, but everything after that dropped to around 200ms. For the overlapping boxes (B2), we visually checked the fix by running our inference_smoke.py script before and after applying the NMS fix to compare outputs.</p>
+
+<h3>5. Individual Technical Contribution (MANDATORY)</h3>
+<table>
+    <tr>
+        <th>Student</th>
+        <th>Program</th>
+        <th>Contribution</th>
+        <th>Evidence</th>
+        <th>% Contribution</th>
+    </tr>
+    <tr>
+        <td>Sara</td>
+        <td>SWD</td>
+        <td>Backend APIs, Auth setup, MongoDB integration</td>
+        <td>GitHub commits & PRs</td>
+        <td>33%</td>
+    </tr>
+    <tr>
+        <td>Mo'men</td>
+        <td>DSAI</td>
+        <td>AI model training, Python inference service, model promotion scripts</td>
+        <td>GitHub commits & Colab Notebooks</td>
+        <td>34%</td>
+    </tr>
+    <tr>
+        <td>Omar</td>
+        <td>IT</td>
+        <td>Angular Frontend development, API wiring, state management</td>
+        <td>GitHub commits & PRs</td>
+        <td>33%</td>
+    </tr>
+</table>
+
+</body>
+</html>

@@ -9,3 +9,5 @@ Backend/**/*.pyc
 **/*.pyc
 **/node_modules/
 **/dist/
+**/.angular/
+documentation/MATURITY_ASSESSMENT.md

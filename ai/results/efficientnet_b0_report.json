@@ -1,0 +1,380 @@
+{
+  "model": "efficientnet_b0",
+  "architecture": {
+    "family": "classification",
+    "base": "EfficientNet-B0 (ImageNet-pretrained)",
+    "head": "Dropout + Linear(1280->2)",
+    "input_size": 224,
+    "primary_metric": "auc"
+  },
+  "dataset": {
+    "name": "RSNA Pneumonia Detection Challenge",
+    "seed": 42
+  },
+  "config": {
+    "epochs": 12,
+    "optimized": true
+  },
+  "phase3_baseline": {
+    "hyperparameters": {
+      "lr": 0.0001,
+      "batch_size": 32,
+      "dropout": 0.3,
+      "weight_decay": 0.0001
+    },
+    "metrics": {
+      "accuracy": 0.8150646430578977,
+      "precision": 0.5661538461538461,
+      "recall": 0.7653910149750416,
+      "f1": 0.6508666430845419,
+      "auc": 0.8855479682190304,
+      "confusion_matrix": [
+        [
+          3430,
+          705
+        ],
+        [
+          282,
+          920
+        ]
+      ],
+      "eval_split": "test",
+      "best_val_auc": 0.8905540132896269,
+      "best_epoch": 5,
+      "epochs_ran": 9,
+      "history": [
+        {
+          "epoch": 1,
+          "train_loss": 0.5981675368583131,
+          "val_loss": 0.5388164732627526,
+          "val_accuracy": 0.7165074011617013,
+          "val_f1": 0.5595342066957788,
+          "val_auc": 0.8120109539085683,
+          "lr": 0.0001
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.5557763754369732,
+          "val_loss": 0.5162325287293531,
+          "val_accuracy": 0.7459246767847105,
+          "val_f1": 0.5746549560853199,
+          "val_auc": 0.8227162299058031,
+          "lr": 0.0001
+        },
+        {
+          "epoch": 3,
+          "train_loss": 0.4926674397524721,
+          "val_loss": 0.43686138521768375,
+          "val_accuracy": 0.7777777777777778,
+          "val_f1": 0.6309894212818917,
+          "val_auc": 0.8814586658655731,
+          "lr": 0.0001
+        },
+        {
+          "epoch": 4,
+          "train_loss": 0.44508974846013766,
+          "val_loss": 0.426426002989986,
+          "val_accuracy": 0.7685965898444819,
+          "val_f1": 0.6272260790824027,
+          "val_auc": 0.8877893960470538,
+          "lr": 0.0001
+        },
+        {
+          "epoch": 5,
+          "train_loss": 0.42399503977712755,
+          "val_loss": 0.41138299095059583,
+          "val_accuracy": 0.8128161888701517,
+          "val_f1": 0.6549222797927461,
+          "val_auc": 0.8905540132896269,
+          "lr": 0.0001
+        },
+        {
+          "epoch": 6,
+          "train_loss": 0.40057992370066764,
+          "val_loss": 0.4328363387884494,
+          "val_accuracy": 0.8341765036537381,
+          "val_f1": 0.6597462514417531,
+          "val_auc": 0.8880881975033389,
+          "lr": 0.0001
+        },
+        {
+          "epoch": 7,
+          "train_loss": 0.3856460120447144,
+          "val_loss": 0.43564731783852606,
+          "val_accuracy": 0.807195053400787,
+          "val_f1": 0.6452947259565667,
+          "val_auc": 0.8812932794605971,
+          "lr": 0.0001
+        },
+        {
+          "epoch": 8,
+          "train_loss": 0.3606090540300586,
+          "val_loss": 0.44443123711797294,
+          "val_accuracy": 0.8109424770470302,
+          "val_f1": 0.6505022514721164,
+          "val_auc": 0.8782732935440788,
+          "lr": 5e-05
+        },
+        {
+          "epoch": 9,
+          "train_loss": 0.3193926315702602,
+          "val_loss": 0.45436889874542546,
+          "val_accuracy": 0.8021360314783587,
+          "val_f1": 0.640571817562968,
+          "val_auc": 0.8773745767817192,
+          "lr": 5e-05
+        }
+      ],
+      "model": "efficientnet_b0",
+      "task": "classification",
+      "model_path": "/kaggle/working/artifacts/checkpoints/efficientnet_b0_baseline.pt",
+      "num_parameters": 4010110,
+      "hyperparameters": {
+        "epochs": 12,
+        "lr": 0.0001,
+        "batch_size": 32,
+        "dropout": 0.3,
+        "weight_decay": 0.0001,
+        "img_size": 224,
+        "optimizer": "Adam",
+        "loss": "CrossEntropyLoss (class-weighted)",
+        "lr_scheduler": "ReduceLROnPlateau(mode=max, factor=0.5, patience=2)",
+        "patience": 4,
+        "freeze_epochs": 2,
+        "augmentation": "train-only: hflip, rotate(10), color jitter; ImageNet-normalized"
+      }
+    }
+  },
+  "phase4_optimization": {
+    "task": "classification",
+    "score_name": "auc",
+    "best_score": 0.8948686868686868,
+    "best_hyperparameters": {
+      "lr": 0.00044803524549670906,
+      "batch_size": 31,
+      "dropout": 0.5019824179160889,
+      "weight_decay": 0.002844939780036646
+    },
+    "algorithms": {
+      "PSO": {
+        "best_params": {
+          "lr": 0.00044803524549670906,
+          "batch_size": 31,
+          "dropout": 0.5019824179160889,
+          "weight_decay": 0.002844939780036646
+        },
+        "best_score": 0.8948686868686868
+      },
+      "GWO": {
+        "best_params": {
+          "lr": 0.000670523759023562,
+          "batch_size": 37,
+          "dropout": 0.4573063681948651,
+          "weight_decay": 0.0033454765964496553
+        },
+        "best_score": 0.8766571664981153
+      },
+      "SA": {
+        "best_params": {
+          "lr": 0.00022489269432579654,
+          "batch_size": 37,
+          "dropout": 0.2793903921495502,
+          "weight_decay": 0.0012032095499810136
+        },
+        "best_score": 0.8893003585547486
+      }
+    },
+    "search_budget": {
+      "population": 3,
+      "iterations": 2,
+      "proxy_epochs": 1,
+      "proxy_train_batches": null,
+      "proxy_eval_batches": 30,
+      "yolo_fraction": null
+    }
+  },
+  "final_hyperparameters": {
+    "lr": 0.00044803524549670906,
+    "batch_size": 31,
+    "dropout": 0.5019824179160889,
+    "weight_decay": 0.002844939780036646
+  },
+  "phase5_final": {
+    "hyperparameters": {
+      "lr": 0.00044803524549670906,
+      "batch_size": 31,
+      "dropout": 0.5019824179160889,
+      "weight_decay": 0.002844939780036646
+    },
+    "metrics": {
+      "accuracy": 0.7339329211167323,
+      "precision": 0.45345858240819814,
+      "recall": 0.8835274542429284,
+      "f1": 0.5993227990970654,
+      "auc": 0.8742905315003008,
+      "confusion_matrix": [
+        [
+          2855,
+          1280
+        ],
+        [
+          140,
+          1062
+        ]
+      ],
+      "eval_split": "test",
+      "best_val_auc": 0.8857967160794996,
+      "best_epoch": 9,
+      "epochs_ran": 12,
+      "history": [
+        {
+          "epoch": 1,
+          "train_loss": 0.567808038434392,
+          "val_loss": 0.5124467154803304,
+          "val_accuracy": 0.7178189994378864,
+          "val_f1": 0.5682339449541285,
+          "val_auc": 0.8296007280621218,
+          "lr": 0.00044803524549670906
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.5459874577287087,
+          "val_loss": 0.49954909017320315,
+          "val_accuracy": 0.7470489038785835,
+          "val_f1": 0.5812655086848635,
+          "val_auc": 0.8337276466952277,
+          "lr": 0.00044803524549670906
+        },
+        {
+          "epoch": 3,
+          "train_loss": 0.5123605124897376,
+          "val_loss": 0.4751350830572878,
+          "val_accuracy": 0.7946411841858723,
+          "val_f1": 0.6244002741603838,
+          "val_auc": 0.8645432057656213,
+          "lr": 0.00044803524549670906
+        },
+        {
+          "epoch": 4,
+          "train_loss": 0.48017374378569583,
+          "val_loss": 0.43820088576374716,
+          "val_accuracy": 0.8085066516769721,
+          "val_f1": 0.6453851492019431,
+          "val_auc": 0.8827129885333433,
+          "lr": 0.00044803524549670906
+        },
+        {
+          "epoch": 5,
+          "train_loss": 0.4805547648345479,
+          "val_loss": 0.6390400764914607,
+          "val_accuracy": 0.5160202360876898,
+          "val_f1": 0.47617116203609816,
+          "val_auc": 0.869139238663541,
+          "lr": 0.00044803524549670906
+        },
+        {
+          "epoch": 6,
+          "train_loss": 0.4806944720115606,
+          "val_loss": 0.48143333119119525,
+          "val_accuracy": 0.69383548810193,
+          "val_f1": 0.5695468914646997,
+          "val_auc": 0.8685598332824607,
+          "lr": 0.00044803524549670906
+        },
+        {
+          "epoch": 7,
+          "train_loss": 0.47974945797911006,
+          "val_loss": 0.4458855837583542,
+          "val_accuracy": 0.7667228780213603,
+          "val_f1": 0.6191495870296727,
+          "val_auc": 0.8768133689321287,
+          "lr": 0.00022401762274835453
+        },
+        {
+          "epoch": 8,
+          "train_loss": 0.4627782202089778,
+          "val_loss": 0.42248591418900244,
+          "val_accuracy": 0.7952032977328087,
+          "val_f1": 0.6410509031198687,
+          "val_auc": 0.8848552703067359,
+          "lr": 0.00022401762274835453
+        },
+        {
+          "epoch": 9,
+          "train_loss": 0.4603218781244824,
+          "val_loss": 0.45647483151083046,
+          "val_accuracy": 0.7344950346636687,
+          "val_f1": 0.6040793517742387,
+          "val_auc": 0.8857967160794996,
+          "lr": 0.00022401762274835453
+        },
+        {
+          "epoch": 10,
+          "train_loss": 0.4531796062419216,
+          "val_loss": 0.4997032963040936,
+          "val_accuracy": 0.8420460933108488,
+          "val_f1": 0.6244988864142539,
+          "val_auc": 0.8778360500940843,
+          "lr": 0.00022401762274835453
+        },
+        {
+          "epoch": 11,
+          "train_loss": 0.45877577546025616,
+          "val_loss": 0.43765355043673104,
+          "val_accuracy": 0.7762788083192805,
+          "val_f1": 0.6285003111387679,
+          "val_auc": 0.879076297323133,
+          "lr": 0.00022401762274835453
+        },
+        {
+          "epoch": 12,
+          "train_loss": 0.4538069745269919,
+          "val_loss": 0.4335769989414711,
+          "val_accuracy": 0.7959527824620574,
+          "val_f1": 0.6425992779783394,
+          "val_auc": 0.8857534843748553,
+          "lr": 0.00011200881137417727
+        }
+      ],
+      "model": "efficientnet_b0",
+      "task": "classification",
+      "model_path": "/kaggle/working/artifacts/checkpoints/efficientnet_b0.pt",
+      "num_parameters": 4010110,
+      "hyperparameters": {
+        "epochs": 12,
+        "lr": 0.00044803524549670906,
+        "batch_size": 31,
+        "dropout": 0.5019824179160889,
+        "weight_decay": 0.002844939780036646,
+        "img_size": 224,
+        "optimizer": "Adam",
+        "loss": "CrossEntropyLoss (class-weighted)",
+        "lr_scheduler": "ReduceLROnPlateau(mode=max, factor=0.5, patience=2)",
+        "patience": 4,
+        "freeze_epochs": 2,
+        "augmentation": "train-only: hflip, rotate(10), color jitter; ImageNet-normalized"
+      }
+    }
+  },
+  "phase6_explainability": {
+    "type": "grad_cam",
+    "image": "/kaggle/working/artifacts/explainability/efficientnet_b0_explain.png",
+    "predicted_class": 1,
+    "pneumonia_probability": 0.785918653011322,
+    "source_image": "/kaggle/working/yolo_dataset/test/images/001916b8-3d30-4935-a5d1-8eaddb1646cd.png"
+  },
+  "phase7_comparison": {
+    "metric": "auc",
+    "before_optimization": 0.8855479682190304,
+    "after_optimization": 0.8742905315003008,
+    "eval_split": "test"
+  },
+  "phase8_demo": {
+    "model": "efficientnet_b0",
+    "task": "classification",
+    "pneumonia_probability": 0.7859,
+    "predicted": "pneumonia",
+    "output_image": "/kaggle/working/artifacts/efficientnet_b0_demo.png",
+    "input_image": "/kaggle/working/yolo_dataset/test/images/001916b8-3d30-4935-a5d1-8eaddb1646cd.png"
+  }
+}

@@ -1,225 +1,146 @@
-# Medical AI System
+<p align="center">
+  <img src="Zewail%20Logo/11.png" alt="Zewail City" width="240"/>
+</p>
 
-Unified graduation project repository for a public-beta chest X-ray pneumonia detection web app.
+<h1 align="center">Chest X-ray Pneumonia Detection System</h1>
 
-## Repository Layout
+<p align="center">
+  An AI-assisted web platform for pneumonia screening and localization from chest radiographs.<br/>
+  <i>Graduation Project - School of Computational Sciences and Artificial Intelligence (CSAI), Zewail City of Science and Technology - June 2026</i>
+</p>
 
-- `Backend/`: FastAPI API, MongoDB persistence, authentication, patient records, and model inference.
-- `Frontend/`: Angular app for doctor signup/login, patient creation, upload, result, and saved records.
-- `ai/`: reproducible training/evaluation utilities, model preflight, model promotion, and smoke-test helpers.
-- `documentation/`: reports, slides, and project supporting documents.
+---
 
-Multiple `.gitignore` files are intentional. The root file handles shared generated output, while `Frontend/.gitignore` and `ai/.gitignore` keep framework-specific caches, datasets, and training artifacts out of git.
+## Project Description
 
-## Current Beta Product Flow
+The Chest X-ray Pneumonia Detection System is a complete, doctor-facing web application that uses deep learning to support pneumonia screening from chest X-ray images. A physician signs in, creates patient records, uploads a chest X-ray, and receives an automated reading: whether pneumonia is likely present, a bounding box showing where, a confidence score, and an explainability heatmap. Every analysis is stored per patient for later review. The system serves five trained models (two detectors and three classifiers) through a single model registry, with Faster R-CNN deployed as the default detector.
 
-1. A doctor creates an account or logs in.
-2. A new account starts empty: no default patients, no manual history, and no demo account activity.
-3. The doctor creates one or more patient records.
-4. The doctor uploads an X-ray for an existing patient.
-5. The authenticated app uses `POST /api/xray/upload`, saves the analysis in MongoDB, and redirects to the result page.
-6. Dashboard, records, profile activity, result refresh, and comparison load from authenticated backend history.
+## Team Members
 
-The public `POST /api/xray/analyze` endpoint remains available as a non-persistent demo/dev endpoint. The logged-in app uses authenticated persistent APIs by default.
+| Name | ID | Program | Role |
+|---|---|---|---|
+| Moamen Elsayed Elsharkawy | 202202015 | CSAI | AI Researcher |
+| Habiba Ayman Amin | 202202088 | CSAI | AI Researcher |
+| Ahmed Gamal Abdelfattah | 202201638 | CSAI | Full-stack |
+| Sara Mostafa Ali | 202201305 | CSAI | Full-stack |
 
-## Model Handoff
+**Supervisor:** Prof. Dr. Khaled Mostafa  
+**Team Number:** 19
 
-The deployed default model is `fasterrcnn`, configured in `Backend/model_assets/manifest.json`.
+## Problem Statement
 
-Detection models can localize likely pneumonia regions and render boxes:
+Pneumonia is a leading cause of illness and death worldwide, and the chest X-ray is the first-line tool used to detect it. In many clinics the number of radiographs far exceeds the number of radiologists available to read them, which delays diagnosis and increases the chance of missed cases. This project provides a practical, accessible system that screens chest radiographs automatically, highlights suspicious regions, quantifies its confidence, and keeps a reviewable record per patient, while keeping the physician in control of the final diagnosis.
 
-- `fasterrcnn`
-- `yolo`
-- `yolo11`
+## Features
 
-Classification models only return whole-image probabilities and cannot draw pneumonia regions:
+- Secure doctor accounts with JWT authentication and bcrypt-hashed passwords.
+- Patient record management (create, view, update, delete) isolated per doctor.
+- Chest X-ray upload with drag-and-drop and live preview.
+- Automated inference: pneumonia decision, bounding box localization, and confidence score.
+- Visual explainability (Grad-CAM and related heatmaps) rendered with every prediction.
+- Multiple models behind one registry (Faster R-CNN, YOLOv8, ResNet50, DenseNet121, EfficientNet-B0).
+- Persistent analysis history per patient.
+- Auto-generated OpenAPI (Swagger) documentation and a health endpoint.
 
-- `resnet50`
-- `densenet121`
-- `efficientnet_b0`
+## System Architecture
 
-Required deployable model assets in `Backend/model_assets`:
+The system follows a modular three-tier architecture: an Angular single-page frontend (with server-side rendering), an asynchronous FastAPI backend, and a MongoDB database, with a PyTorch inference service that loads model weights from a registry.
 
-- `manifest.json`
-- `fasterrcnn.pt`
-- `phase3_baseline_results.json`
-- `web_result.json`
-- `demo_output.png`
+<p align="center">
+  <img src="documentation/figures/architecture.png" alt="System Architecture" width="720"/>
+</p>
 
-Optional but supported assets:
+## Technologies Used
 
-- `yolo_best.pt`
-- `yolo11_best.pt`
-- `resnet50.pt`
-- `densenet121.pt`
-- `efficientnet_b0.pt`
-- `phase8_demo_result.json`
-- `kaggle_notebook_summary.json`
+| Layer | Technology |
+|---|---|
+| Frontend | Angular 21 (TypeScript), Server-Side Rendering (Express) |
+| Backend | FastAPI (Python), Uvicorn, async I/O |
+| Database | MongoDB (Motor async driver) |
+| AI / ML | PyTorch, torchvision, Ultralytics (YOLOv8) |
+| Auth & Security | JWT (python-jose), bcrypt (passlib), CORS |
+| Model storage | Git LFS for the `.pt` checkpoints |
 
-## Backend Setup
+## Setup Instructions
 
-```powershell
-cd "D:\Collage\graduation project\Backend"
+> Requirements: Python 3.12, Node.js 20+ and npm, a running MongoDB instance (local or MongoDB Atlas), and Git LFS.
+
+**1. Clone (with Git LFS so the model weights download):**
+```bash
+git lfs install
+git clone https://github.com/202201638/Graduation_project_Fully_team_2026.git
+cd Graduation_project_Fully_team_2026
+```
+
+**2. Backend:**
+```bash
+cd Backend
 python -m venv venv
-.\venv\Scripts\activate
-python -m pip install -r requirements.txt
-copy .env.example .env
+# Windows:  .\venv\Scripts\activate    |  Linux/Mac:  source venv/bin/activate
+pip install -r requirements.txt
+copy .env.example .env          # then edit .env: set SECRET_KEY and MONGODB_URL
+python main.py                  # dev server, or:  uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-Edit `Backend/.env` before deploying:
-
-```env
-APP_ENV=development
-MONGODB_URL=mongodb://localhost:27017/medical_system
-SECRET_KEY=change-this-to-a-random-32-plus-character-secret-before-deploy
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-CORS_ORIGINS=http://localhost:4200,http://127.0.0.1:4200
-UPLOAD_DIR=uploads
-MAX_FILE_SIZE=10485760
-API_HOST=0.0.0.0
-API_PORT=8000
-DEBUG=False
-```
-
-Production requirements:
-
-- Set `APP_ENV=production`.
-- Set a strong unique `SECRET_KEY` with at least 32 characters.
-- Set `CORS_ORIGINS` to the deployed frontend origin.
-- Keep `DEBUG=False`; the `/debug` route is only registered when debug mode is enabled.
-- Configure MongoDB. Authentication, patients, and stored analysis history require MongoDB.
-
-Run backend locally:
-
-```powershell
-cd "D:\Collage\graduation project\Backend"
-.\venv\Scripts\activate
-python main.py
-```
-
-Production-style startup:
-
-```powershell
-cd "D:\Collage\graduation project\Backend"
-.\venv\Scripts\activate
-uvicorn main:app --host 0.0.0.0 --port 8000
-```
-
-Useful backend URLs:
-
-- API root: `http://localhost:8000`
-- Swagger: `http://localhost:8000/docs`
-- Health: `http://localhost:8000/health`
-- Model status: `http://localhost:8000/api/xray/status`
-- Model metadata: `http://localhost:8000/api/xray/metadata`
-
-## Frontend Setup
-
-```powershell
-cd "D:\Collage\graduation project\Frontend"
+**3. Frontend (in a second terminal):**
+```bash
+cd Frontend
 npm install
-npm start
+npm start                       # dev server at http://localhost:4200
+# production build:  npm run build
 ```
 
-Frontend URL:
+## Deployment Instructions
 
-- `http://localhost:4200`
+1. Provision a MongoDB instance and set `MONGODB_URL` in `Backend/.env`.
+2. Set `APP_ENV=production`, a strong 32+ character `SECRET_KEY`, and the deployed frontend URL in `CORS_ORIGINS`.
+3. Serve the backend with `uvicorn main:app --host 0.0.0.0 --port 8000` behind a reverse proxy.
+4. Build the frontend with `npm run build` and serve `Frontend/dist/medical_system` (static + SSR).
+5. Ensure the model weights in `Backend/model_assets/*.pt` are present (pulled via Git LFS).
 
-The frontend backend URL is configured in `Frontend/src/environments/environment.ts`. For deployment, set the runtime global `window.__MEDISCAN_API_BASE_URL__` before the Angular app boots, or update the environment file during your deploy build.
+## Usage Guide
 
-## AI Pipeline Setup
+1. Register a doctor account and log in.
+2. Create or select a patient record.
+3. Open the upload page and choose a chest X-ray image (a preview is shown).
+4. Submit for analysis and wait on the processing screen.
+5. Review the result: the annotated image, the pneumonia decision, the confidence score, and the heatmap.
+6. Find the saved analysis later in the patient history.
 
-```powershell
-cd "D:\Collage\graduation project\ai"
-python -m venv venv
-.\venv\Scripts\activate
-python -m pip install -r requirements.txt
-python -m compileall main.py src
+## API Summary
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/api/auth/signup`, `/login`, `/me` | POST/GET | Authentication and current user |
+| `/api/patients` | CRUD | Patient record management |
+| `/api/xray/upload` | POST | Upload, run inference, persist result |
+| `/api/xray`, `/api/xray/{id}` | GET/DELETE | List and manage analyses |
+| `/api/xray/status`, `/metadata` | GET | Model status and metadata |
+| `/health`, `/docs` | GET | Health check and Swagger documentation |
+
+## Results (held-out test set, RSNA Pneumonia Detection Challenge)
+
+- **Best classifier:** EfficientNet-B0, AUC 0.886.
+- **Deployed detector:** Faster R-CNN, recall 0.812, mAP@0.5 0.381 (recall prioritized to minimize missed pneumonia).
+- Leak-free, patient-wise split (20% held-out test: 4,135 normal / 1,202 pneumonia).
+
+## Screenshots / Demo
+
+Sample detector output and evaluation figures are in [`documentation/figures/`](documentation/figures/). The full thesis, in-depth explanation, defense presentation, and poster are in [`documentation/`](documentation/).
+
+<p align="center">
+  <img src="Backend/model_assets/demo_output.png" alt="Sample prediction" width="320"/>
+</p>
+
+## Repository Structure
+
+```
+Backend/        FastAPI backend, inference service, model_assets (Git LFS)
+Frontend/       Angular 21 single-page application (SSR)
+ai/             Research pipeline: data prep, training, optimization, evaluation
+documentation/  Thesis, explanation, presentation, poster, figures
 ```
 
-Run preflight checks:
+## License
 
-```powershell
-python -c "from src.preflight import run_preflight_checks; run_preflight_checks()"
-```
-
-Dry-run model promotion:
-
-```powershell
-python -m src.model_promotion --metric recall
-```
-
-Apply model promotion only when you intentionally want to copy deployable assets into `Backend/model_assets`:
-
-```powershell
-python -m src.model_promotion --metric recall --apply
-```
-
-Run backend inference smoke tests after starting the backend:
-
-```powershell
-python -m src.inference_smoke --backend-url http://localhost:8000 --model-name fasterrcnn --limit 2
-```
-
-## Authenticated API Summary
-
-Authentication:
-
-- `POST /api/auth/signup`
-- `POST /api/auth/login`
-- `GET /api/auth/me`
-
-Patients:
-
-- `POST /api/patients/`
-- `GET /api/patients/list`
-- `GET /api/patients/{patient_id}`
-- `PUT /api/patients/{patient_id}`
-- `DELETE /api/patients/{patient_id}`
-
-X-ray history:
-
-- `POST /api/xray/upload`
-- `GET /api/xray/`
-- `GET /api/xray/{analysis_id}`
-- `DELETE /api/xray/{analysis_id}`
-
-Demo/dev inference:
-
-- `POST /api/xray/analyze`
-
-## Verification Commands
-
-Backend:
-
-```powershell
-cd "D:\Collage\graduation project\Backend"
-.\venv\Scripts\activate
-python -m pytest -q
-```
-
-Frontend:
-
-```powershell
-cd "D:\Collage\graduation project\Frontend"
-npm test
-npm run build
-```
-
-AI:
-
-```powershell
-cd "D:\Collage\graduation project\ai"
-python -m compileall main.py src
-```
-
-Manual beta acceptance:
-
-1. Start MongoDB, backend, and frontend.
-2. Create a new doctor account.
-3. Confirm dashboard, records, and profile activity are empty.
-4. Create a patient.
-5. Upload a chest X-ray for that patient.
-6. Confirm the result page shows the model output and rendered image.
-7. Open records, refresh the browser, and confirm the saved scan remains.
+See [LICENSE](LICENSE).
