@@ -207,23 +207,31 @@ A(bullet([t("Grad-CAM: ", { bold: true }), t("بيستخدم الـ gradients ع
 A(bullet([t("Integrated Gradients: ", { bold: true }), t("بيجمع الـ gradient على طول مسار من صورة سودا (baseline) للصورة الحقيقية، فبيدّي attribution لكل pixel.")]));
 A(bullet([t("GradientSHAP: ", { bold: true }), t("تقدير على طريقة SHAP بياخد متوسط (input - baseline) * gradient على عينات فيها noise.")]));
 A(bullet([t("Score-CAM: ", { bold: true }), t("من غير gradients؛ بيقنّع الصورة بكل activation channel ويوزنه بالـ pneumonia score الناتج، فبيدّي map class-discriminative.")]));
-A(P("الشكل اللي تحت بيوضّح نفس الصورة بأربع طرق للـ classifier (EfficientNet-B0): المناطق الحمرا/السخنة هي اللي أثّرت أكتر في القرار."));
+A(P([t("مثال حقيقي - حالة Pneumonia: ", { bold: true }), t("كل الصور دي نواتج فعلية من الـ web application على نفس صورة الأشعة. الـ classifier (EfficientNet-B0) قال "), t("PNEUMONIA باحتمال 75%", { bold: true, color: NAVY }), t(". تحت كل صورة مكتوب التنبؤ، والـ heatmaps بتركّز على الرئة اليسرى (مكان الـ opacity) مش على حرف أو حافة.")]));
 A(...imageGrid([
-  ["out_original.png", "الصورة الأصلية (input X-ray)"],
-  ["xai_gradcam.png", "Grad-CAM"],
-  ["xai_integrated_gradients.png", "Integrated Gradients"],
-  ["xai_score_cam.png", "Score-CAM"],
-], 250, 250));
+  ["xai_banner.png", "EfficientNet-B0 - التنبؤ: PNEUMONIA (75%)"],
+  ["xai_gradcam.png", "Grad-CAM - بيركّز على الرئة المصابة"],
+  ["xai_integrated_gradients.png", "Integrated Gradients - PNEUMONIA"],
+  ["xai_gradient_shap.png", "GradientSHAP - PNEUMONIA"],
+  ["xai_score_cam.png", "Score-CAM (من غير gradients) - PNEUMONIA"],
+  ["xai_orig.png", "الصورة الأصلية (input X-ray)"],
+], 245, 245));
 A(H3("للـ detectors"));
 A(bullet([t("Eigen-CAM: ", { bold: true }), t("الـ saliency القياسي بالـ gradients مبيتطبّقش بسهولة على الـ detectors، فبنستخدم Eigen-CAM اللي بيحلّل الـ activations بتاعة الـ backbone (المكوّن الرئيسي - principal component) عشان يبيّن الشبكة بتركّز فين.")]));
 A(bullet([t("Occlusion sensitivity: ", { bold: true }), t("بنغطّي أجزاء من الصورة بمربع ونشوف ثقة الـ detection بتنزل قد إيه؛ كل ما النزول أكبر، كل ما المنطقة دي أهم.")]));
+A(P([t("نفس الصورة بالـ detectors: ", { bold: true }), t("Faster R-CNN لقى الالتهاب ورسم box (نسبة 54%، ومكتوب "), t("Pneumonia Detected", { bold: true }), t(" فوق الصورة)، لكن YOLO فوّت الحالة (no detection) - وده بالظبط سبب نشرنا لـ Faster R-CNN: الـ recall الأعلى. والـ Eigen-CAM والـ Occlusion بيوضّحوا منطقة تركيز الـ detector.")]));
 A(...imageGrid([
-  ["out_fasterrcnn_box.png", "ناتج Faster R-CNN: box حوالين الالتهاب + نسبة الثقة"],
-  ["out_yolo_box.png", "ناتج YOLOv8 على نفس الصورة"],
+  ["xai_det_box.png", "Faster R-CNN - التنبؤ: Pneumonia Detected (box)"],
+  ["xai_yolo_box.png", "YOLOv8 - فوّت الحالة (no detection)"],
   ["xai_eigencam.png", "Eigen-CAM (Faster R-CNN backbone)"],
   ["xai_occlusion.png", "Occlusion sensitivity (Faster R-CNN)"],
-], 250, 250));
-A(P([t("ملاحظة: ", { bold: true }), t("الصور دي نواتج حقيقية من الـ web application الشغّال (نفس صورة الـ input). الـ heatmaps بتركّز على منطقة الرئة المصابة، وده بيأكد إن الـ models بتتعلّم إشارات طبية حقيقية مش artifacts. نواتج SSDlite هتتضاف بعد تدريبه على Kaggle.")]));
+], 245, 245));
+A(P([t("للمقارنة - حالة Normal: ", { bold: true }), t("على أشعة صدر سليمة، نفس الـ classifier قال "), t("Normal باحتمال 99%", { bold: true, color: TEAL }), t(" (احتمال الالتهاب 0.8% بس)، فالنظام بيفرّق بوضوح بين الحالتين.")]));
+A(...imageGrid([
+  ["xai_normal_orig.png", "أشعة صدر سليمة (input)"],
+  ["xai_normal_banner.png", "EfficientNet-B0 - التنبؤ: Normal (99%)"],
+], 245, 245));
+A(P([t("ملاحظة: ", { bold: true }), t("كل الصور دي نواتج حقيقية من الـ web application الشغّال. الـ heatmaps في حالة الالتهاب بتركّز على الرئة المصابة، وده بيأكد إن الـ models بتتعلّم إشارات طبية حقيقية مش artifacts. نواتج SSDlite هتتضاف بعد تدريبه على Kaggle.")]));
 
 A(H2("A12. القسم A - أسئلة متوقّعة من اللجنة"));
 A(...qa("ليه نتايجكوا الأولى كانت شبه مثالية وعملتوا إيه؟", "كانت متضخّمة بسبب data leak في الـ preprocessing: الـ contrast enhancement كان متطبّق بشكل مختلف على الـ class اتنين، فالـ model كان بيكتشف الـ preprocessing مش المرض. صلّحناها بتطبيق نفس الـ CLAHE على كل الصور وبنعرض الأرقام الصادقة الأقل."));
