@@ -112,6 +112,44 @@ def build_fasterrcnn_detector(
     )
 
 
+def build_ssdlite_detector(
+    num_classes: int = 2, prefer_pretrained: bool = True
+) -> Tuple[torch.nn.Module, bool]:
+    """SSDlite320 MobileNetV3-Large detector adapted to ``num_classes`` (incl. background).
+
+    The fast-to-train detector: ~3.4M parameters, 320px input, mobile-optimized. We
+    load COCO-pretrained weights and swap the classification head for our class count,
+    mirroring ``build_fasterrcnn_detector``. Imports are local so the module still loads
+    on torchvision builds that name these symbols differently.
+    """
+    from functools import partial
+    import torchvision.models.detection as tvdet
+    from torchvision.models.detection import _utils as det_utils
+    from torchvision.models.detection.ssdlite import SSDLiteClassificationHead
+
+    def configure(model: torch.nn.Module) -> torch.nn.Module:
+        in_channels = det_utils.retrieve_out_channels(model.backbone, (320, 320))
+        num_anchors = model.anchor_generator.num_anchors_per_location()
+        norm_layer = partial(nn.BatchNorm2d, eps=0.001, momentum=0.03)
+        model.head.classification_head = SSDLiteClassificationHead(
+            in_channels, num_anchors, num_classes, norm_layer
+        )
+        return model
+
+    return _build_with_optional_weights(
+        label="SSDlite",
+        pretrained_builder=lambda: configure(
+            tvdet.ssdlite320_mobilenet_v3_large(
+                weights=tvdet.SSDLite320_MobileNet_V3_Large_Weights.DEFAULT
+            )
+        ),
+        fallback_builder=lambda: tvdet.ssdlite320_mobilenet_v3_large(
+            weights=None, weights_backbone=None, num_classes=num_classes
+        ),
+        prefer_pretrained=prefer_pretrained,
+    )
+
+
 def load_checkpoint_if_available(
     model: torch.nn.Module,
     checkpoint_path: str,

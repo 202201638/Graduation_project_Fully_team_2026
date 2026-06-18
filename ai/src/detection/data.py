@@ -6,11 +6,11 @@ import cv2
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-from src.config import YOLO_DATASET_DIR, IMG_SIZE
+from src.config import YOLO_DATASET_DIR, IMG_SIZE, SEED
 
 
 class YoloDetectionDataset(Dataset):
-    def __init__(self, split: str = "train"):
+    def __init__(self, split: str = "train", fraction: float = 1.0):
         self.split = split
         self.is_train = split == "train"
         self.img_dir = os.path.join(YOLO_DATASET_DIR, split, "images")
@@ -20,6 +20,13 @@ class YoloDetectionDataset(Dataset):
             f for f in os.listdir(self.img_dir) if f.endswith(".png")
         ]
         self.image_files.sort()
+
+        # Deterministic subsample for fast training on part of the data (e.g. the
+        # SSDlite "half-dataset" speed lever, or the Phase-4 proxy search).
+        if 0.0 < fraction < 1.0 and self.image_files:
+            keep = max(1, int(len(self.image_files) * fraction))
+            rng = random.Random(SEED)
+            self.image_files = sorted(rng.sample(self.image_files, keep))
 
     def __len__(self) -> int:
         return len(self.image_files)
@@ -128,8 +135,8 @@ def _collate_fn(batch):
     return list(images), list(targets)
 
 
-def _make_loader(split: str, batch_size: int, num_workers: int) -> DataLoader:
-    dataset = YoloDetectionDataset(split=split)
+def _make_loader(split: str, batch_size: int, num_workers: int, fraction: float = 1.0) -> DataLoader:
+    dataset = YoloDetectionDataset(split=split, fraction=fraction)
     return DataLoader(
         dataset,
         batch_size=batch_size,
@@ -141,10 +148,11 @@ def _make_loader(split: str, batch_size: int, num_workers: int) -> DataLoader:
 
 
 def create_dataloaders(
-    batch_size: int = 4, num_workers: int = 2
+    batch_size: int = 4, num_workers: int = 2, train_fraction: float = 1.0
 ) -> Tuple[DataLoader, DataLoader]:
+    # Only the train split is subsampled; val stays full so evaluation is comparable.
     return (
-        _make_loader("train", batch_size, num_workers),
+        _make_loader("train", batch_size, num_workers, fraction=train_fraction),
         _make_loader("val", batch_size, num_workers),
     )
 

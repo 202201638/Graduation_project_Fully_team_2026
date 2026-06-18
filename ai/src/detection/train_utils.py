@@ -128,11 +128,14 @@ def train_torchvision_detector(
     num_workers: int = 2,
     max_train_batches: Optional[int] = None,
     max_eval_batches: Optional[int] = None,
+    fraction: float = 1.0,
 ) -> Dict:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
 
-    train_loader, val_loader = create_dataloaders(batch_size=batch_size, num_workers=num_workers)
+    train_loader, val_loader = create_dataloaders(
+        batch_size=batch_size, num_workers=num_workers, train_fraction=fraction
+    )
     test_loader = create_detection_test_loader(batch_size=batch_size, num_workers=num_workers) if eval_on_test else None
 
     # optimizer holds ALL params; requires_grad toggling handles freeze/unfreeze
@@ -285,6 +288,7 @@ def train_torchvision_detector(
             "freeze_epochs": freeze_epochs,
             "grad_clip": grad_clip,
             "patience": patience,
+            "train_fraction": fraction,
             "augmentation": "train-only: box-aware hflip + photometric jitter",
         },
     }

@@ -8,7 +8,7 @@ from typing import Any
 from src.config import ARTIFACT_DIR, CHECKPOINT_DIR, PROJECT_ROOT
 
 
-DETECTION_MODELS = {"yolo", "fasterrcnn"}
+DETECTION_MODELS = {"yolo", "fasterrcnn", "ssdlite"}
 CLASSIFICATION_MODELS = {"resnet50", "densenet121", "efficientnet_b0"}
 MODEL_CONFIGS = {
     "yolo": {
@@ -27,6 +27,16 @@ MODEL_CONFIGS = {
         "task": "pneumonia_detection",
         "weights_file": "fasterrcnn.pt",
         "class_names": ["pneumonia"],
+        "default_conf": 0.1,
+        "confirmed_conf": 0.25,
+    },
+    "ssdlite": {
+        "display_name": "SSDlite",
+        "model_type": "torchvision_ssdlite_detection",
+        "task": "pneumonia_detection",
+        "weights_file": "ssdlite.pt",
+        "class_names": ["pneumonia"],
+        "default_imgsz": 320,
         "default_conf": 0.1,
         "confirmed_conf": 0.25,
     },
@@ -132,7 +142,7 @@ def build_manifest(default_model_key: str) -> dict[str, Any]:
             }
         ),
         "limitations": {
-            "detection_models": "YOLO and Faster R-CNN can draw pneumonia boxes.",
+            "detection_models": "YOLO, Faster R-CNN, and SSDlite can draw pneumonia boxes.",
             "classification_models": "ResNet50, DenseNet121, and EfficientNet-B0 produce image-level probabilities only.",
         },
     }

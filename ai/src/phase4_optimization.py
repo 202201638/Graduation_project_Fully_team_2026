@@ -14,6 +14,7 @@ from src.classification.train_efficientnet import train_efficientnet
 from src.classification.train_resnet import train_resnet
 from src.config import ARTIFACT_DIR
 from src.detection.train_fasterrcnn import train_fasterrcnn
+from src.detection.train_ssdlite import train_ssdlite
 from src.detection.train_yolo import train_yolo
 from src.optimization.algorithms import (
     SearchDimension,
@@ -25,9 +26,11 @@ from src.optimization.algorithms import (
 BEST_PARAMS_PATH = os.path.join(ARTIFACT_DIR, "phase4_best_hyperparameters.json")
 
 CLASSIFICATION_MODELS = {"resnet50", "densenet121", "efficientnet_b0"}
-DETECTION_MODELS = {"yolo", "fasterrcnn"}
+DETECTION_MODELS = {"yolo", "fasterrcnn", "ssdlite"}
 YOLO_MODELS = {"yolo"}
 _YOLO_BASE_WEIGHTS = {"yolo": ""}
+# Non-YOLO TorchVision detectors share one proxy-scoring path; dispatch by name.
+_TV_DET_TRAINERS = {"fasterrcnn": train_fasterrcnn, "ssdlite": train_ssdlite}
 
 # Per-model search spaces
 _SEARCH_SPACES: Dict[str, List[SearchDimension]] = {
@@ -40,6 +43,11 @@ _SEARCH_SPACES: Dict[str, List[SearchDimension]] = {
     "fasterrcnn": [
         SearchDimension("lr", 5e-4, 1e-2, "float"),
         SearchDimension("batch_size", 2, 6, "int"),
+        SearchDimension("weight_decay", 1e-5, 5e-3, "float"),
+    ],
+    "ssdlite": [
+        SearchDimension("lr", 1e-3, 1e-2, "float"),
+        SearchDimension("batch_size", 6, 16, "int"),
         SearchDimension("weight_decay", 1e-5, 5e-3, "float"),
     ],
 }
@@ -110,7 +118,8 @@ def _proxy_score_detection(
             )
             return float(metrics.get("map50", 0.0))
 
-        metrics = train_fasterrcnn(
+        trainer = _TV_DET_TRAINERS[model_name]
+        metrics = trainer(
             epochs=quick_epochs,
             lr=float(params["lr"]),
             batch_size=int(params["batch_size"]),
@@ -120,6 +129,7 @@ def _proxy_score_detection(
             eval_on_test=False,
             max_train_batches=train_batches,
             max_eval_batches=eval_batches,
+            fraction=fraction,           # proxy: subsample train data for speed
         )
         score = float(metrics.get("map50", 0.0))
         return score if score > 0 else float(metrics.get("recall", 0.0))
@@ -192,7 +202,7 @@ def optimize_model(
             "proxy_epochs": quick_epochs,
             "proxy_train_batches": None if is_classification else train_batches,
             "proxy_eval_batches": eval_batches,
-            "yolo_fraction": yolo_fraction if model_name in YOLO_MODELS else None,
+            "proxy_fraction": None if is_classification else yolo_fraction,
         },
     }
 

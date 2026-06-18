@@ -25,11 +25,14 @@ from src.model_utils import (
     build_efficientnet_b0_classifier,
     build_fasterrcnn_detector,
     build_resnet50_classifier,
+    build_ssdlite_detector,
     load_checkpoint_if_available,
     resolve_latest_yolo_checkpoint,
 )
 
 CLASSIFICATION_MODELS = {"resnet50", "densenet121", "efficientnet_b0"}
+# TorchVision detector builders (non-YOLO), dispatched by model name.
+_DET_BUILDERS = {"fasterrcnn": build_fasterrcnn_detector, "ssdlite": build_ssdlite_detector}
 _NORMALIZE = T.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD)
 
 
@@ -129,7 +132,7 @@ def _classifier_factory(model_name: str):
 
 def _detection_overlay(model_name: str, checkpoint_path: str, image_path: str, out_path: str):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    builder = build_fasterrcnn_detector
+    builder = _DET_BUILDERS.get(model_name, build_fasterrcnn_detector)
     model, _ = builder()
     load_checkpoint_if_available(model, checkpoint_path)
     model = model.to(device).eval()
@@ -253,11 +256,18 @@ def _eigen_cam_detector(model_name: str, checkpoint_path: str, image_path: str, 
         finally:
             handle.remove()
     else:
-        model, _ = build_fasterrcnn_detector()
+        builder = _DET_BUILDERS.get(model_name, build_fasterrcnn_detector)
+        model, _ = builder()
         load_checkpoint_if_available(model, checkpoint_path)
         model = model.to(device).eval()
         tensor = torch.from_numpy(image_rgb).permute(2, 0, 1).float().to(device) / 255.0
-        handle = model.backbone.body.layer4[-1].register_forward_hook(_hook)
+        # ResNet50-FPN exposes backbone.body.layer4; MobileNetV3 (SSDlite) does not,
+        # so hook the whole backbone (its feature-map output) for those.
+        if model_name == "ssdlite":
+            hook_target = model.backbone
+        else:
+            hook_target = model.backbone.body.layer4[-1]
+        handle = hook_target.register_forward_hook(_hook)
         try:
             with torch.no_grad():
                 model([tensor])
@@ -265,6 +275,8 @@ def _eigen_cam_detector(model_name: str, checkpoint_path: str, image_path: str, 
             handle.remove()
 
     activation = captured.get("value")
+    if isinstance(activation, dict):
+        activation = list(activation.values())[-1]
     if isinstance(activation, (list, tuple)):
         activation = activation[0]
     if activation is None:
@@ -346,7 +358,8 @@ def _occlusion_detector(model_name, checkpoint_path, image_path, out_path, grid:
 
         batch = 16
     else:
-        model, _ = build_fasterrcnn_detector()
+        builder = _DET_BUILDERS.get(model_name, build_fasterrcnn_detector)
+        model, _ = builder()
         load_checkpoint_if_available(model, checkpoint_path)
         model = model.to(device).eval()
 
