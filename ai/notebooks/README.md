@@ -32,6 +32,11 @@ comparison - so you only run the setup cell, then that section (no need to retra
 It writes `artifacts/<model>_report_rerun.json` and only promotes the new weights if they beat the
 baseline.
 
+**One-stop option: `07_rerun_all.ipynb`.** Instead of opening each notebook, this single notebook does
+the setup once and runs the stronger re-run for every model in a `MODELS` list (edit it to run a subset
+per Kaggle session if you hit the time limit). Same outputs: `artifacts/<model>_report_rerun.json` +
+`artifacts/checkpoints/<model>_rerun.pt`.
+
 ## Hand-back
 
 After each notebook finishes, download from the **Output** tab:
