@@ -1,4 +1,4 @@
-"""Phase 4: nature-inspired hyperparameter optimization for ALL six models.
+"""Phase 4: nature-inspired hyperparameter optimization for ALL five models.
 
 Each candidate is scored with a fast PROXY (few epochs / capped batches / data
 fraction) so the search fits a Kaggle session, then the winning hyperparameters
@@ -14,7 +14,6 @@ from src.classification.train_efficientnet import train_efficientnet
 from src.classification.train_resnet import train_resnet
 from src.config import ARTIFACT_DIR
 from src.detection.train_fasterrcnn import train_fasterrcnn
-from src.detection.train_ssdlite import train_ssdlite
 from src.detection.train_yolo import train_yolo
 from src.optimization.algorithms import (
     SearchDimension,
@@ -26,11 +25,11 @@ from src.optimization.algorithms import (
 BEST_PARAMS_PATH = os.path.join(ARTIFACT_DIR, "phase4_best_hyperparameters.json")
 
 CLASSIFICATION_MODELS = {"resnet50", "densenet121", "efficientnet_b0"}
-DETECTION_MODELS = {"yolo", "fasterrcnn", "ssdlite"}
+DETECTION_MODELS = {"yolo", "fasterrcnn"}
 YOLO_MODELS = {"yolo"}
 _YOLO_BASE_WEIGHTS = {"yolo": ""}
 # Non-YOLO TorchVision detectors share one proxy-scoring path; dispatch by name.
-_TV_DET_TRAINERS = {"fasterrcnn": train_fasterrcnn, "ssdlite": train_ssdlite}
+_TV_DET_TRAINERS = {"fasterrcnn": train_fasterrcnn}
 
 # Per-model search spaces
 _SEARCH_SPACES: Dict[str, List[SearchDimension]] = {
@@ -43,11 +42,6 @@ _SEARCH_SPACES: Dict[str, List[SearchDimension]] = {
     "fasterrcnn": [
         SearchDimension("lr", 5e-4, 1e-2, "float"),
         SearchDimension("batch_size", 2, 6, "int"),
-        SearchDimension("weight_decay", 1e-5, 5e-3, "float"),
-    ],
-    "ssdlite": [
-        SearchDimension("lr", 1e-3, 1e-2, "float"),
-        SearchDimension("batch_size", 6, 16, "int"),
         SearchDimension("weight_decay", 1e-5, 5e-3, "float"),
     ],
 }
@@ -221,7 +215,7 @@ def run_phase4_optimization(
     iterations: int = 2,
     quick_epochs: int = 1,
 ) -> Dict:
-    """Optimize the given models (default: all six)."""
+    """Optimize the given models (default: all five)."""
     if models is None:
         models = ["yolo", "fasterrcnn", "resnet50", "densenet121", "efficientnet_b0"]
 

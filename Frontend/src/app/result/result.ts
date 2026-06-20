@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import {
@@ -269,6 +269,7 @@ export class Result implements OnInit {
     private router: Router,
     private route: ActivatedRoute,
     private analysisState: AnalysisStateService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit() {
@@ -282,10 +283,12 @@ export class Result implements OnInit {
           this.result = result;
           this.initImageTab();
           this.isLoading = false;
+          this.cdr.markForCheck();
         },
         error: (error) => {
           this.errorMessage = error?.message || 'Unable to load this saved analysis.';
           this.isLoading = false;
+          this.cdr.markForCheck();
         },
       });
       return;

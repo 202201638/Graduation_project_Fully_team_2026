@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -138,6 +138,7 @@ export class Upload implements OnInit, OnDestroy {
     private profileService: ProfileService,
     private apiService: ApiService,
     private authService: AuthService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit() {
@@ -154,6 +155,7 @@ export class Upload implements OnInit, OnDestroy {
     this.metadataSubscription = this.analysisState.metadata$.subscribe((metadata) => {
       this.metadata = metadata;
       this.applyDefaultModel();
+      this.cdr.markForCheck();
     });
     this.historySubscription = this.analysisState.history$.subscribe((history) => {
       this.recentUploads = history.slice(0, 6).map((item) => ({
@@ -161,6 +163,7 @@ export class Upload implements OnInit, OnDestroy {
         date: item.date,
         image: item.renderedImage || item.image,
       }));
+      this.cdr.markForCheck();
     });
 
     if (typeof window !== 'undefined') {
@@ -189,9 +192,11 @@ export class Upload implements OnInit, OnDestroy {
         if (!this.patientId && patients.length) {
           this.patientId = patients[0].patient_id;
         }
+        this.cdr.markForCheck();
       },
       error: (error) => {
         this.patientLoadError = error?.error?.detail || 'Unable to load patient records.';
+        this.cdr.markForCheck();
       },
     });
   }
@@ -305,10 +310,12 @@ export class Upload implements OnInit, OnDestroy {
           emergency_contact: '',
         };
         this.isCreatingPatient = false;
+        this.cdr.markForCheck();
       },
       error: (error) => {
         this.createPatientError = error?.error?.detail || 'Unable to create patient record.';
         this.isCreatingPatient = false;
+        this.cdr.markForCheck();
       },
     });
   }

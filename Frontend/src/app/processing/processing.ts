@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -22,6 +22,7 @@ export class Processing implements OnInit, OnDestroy {
   constructor(
     private router: Router,
     private analysisState: AnalysisStateService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit() {
@@ -52,6 +53,7 @@ export class Processing implements OnInit, OnDestroy {
         this.router.navigate(['/result', this.analysisState.getResult()!.analysisId]);
       } else if (state.status === 'error') {
         this.errorMessage = state.error || 'The analysis request failed.';
+        this.cdr.markForCheck();
       }
     });
   }

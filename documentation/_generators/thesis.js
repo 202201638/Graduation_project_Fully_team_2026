@@ -62,6 +62,54 @@ function table(headers, rows, widths, capN, caption) {
   return out;
 }
 
+// ---------- code block + image grid helpers ----------
+const MONO = "Consolas";
+const CODE_BD = { style: BorderStyle.SINGLE, size: 4, color: "C9D3E0" };
+const CODE_BORDERS = { top: CODE_BD, bottom: CODE_BD, left: CODE_BD, right: CODE_BD };
+const NB = { style: BorderStyle.SINGLE, size: 2, color: "FFFFFF" };
+const NO_BORDERS = { top: NB, bottom: NB, left: NB, right: NB, insideHorizontal: NB, insideVertical: NB };
+function codeBlock(lines, label) {
+  const paras = lines.map((l) => new Paragraph({
+    spacing: { line: 240, lineRule: "auto", after: 0, before: 0 },
+    children: [new TextRun({ text: l === "" ? " " : l, font: MONO, size: 17 })],
+  }));
+  const c = new TableCell({
+    borders: CODE_BORDERS,
+    shading: { fill: "F5F7FA", type: ShadingType.CLEAR, color: "auto" },
+    margins: { top: 90, bottom: 90, left: 150, right: 120 },
+    width: { size: CW, type: WidthType.DXA },
+    children: paras,
+  });
+  const t = new Table({ width: { size: CW, type: WidthType.DXA }, columnWidths: [CW], rows: [new TableRow({ children: [c] })] });
+  const out = [new Paragraph({ spacing: { before: 60, after: 40 }, children: [txt("")] }), t];
+  if (label) out.push(new Paragraph({ alignment: AlignmentType.LEFT, spacing: { before: 40, after: 140 }, children: [txt(label, { italics: true, size: 18, color: "555555" })] }));
+  return out;
+}
+function gimg(file, w, h) {
+  const path = file.endsWith(".png") ? FIG + file : FIG + file + ".png";
+  return new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0, before: 0 }, children: [new ImageRun({ type: "png", data: fs.readFileSync(path), transformation: { width: w, height: h }, altText: { title: file, description: file, name: file } })] });
+}
+// items: [[file, wPx, hPx], ...] laid out perRow per row, borderless, one shared caption.
+function figGrid(items, perRow, n, caption) {
+  const colW = Math.floor(CW / perRow);
+  const rows = [];
+  for (let i = 0; i < items.length; i += perRow) {
+    const chunk = items.slice(i, i + perRow);
+    while (chunk.length < perRow) chunk.push(null);
+    rows.push(new TableRow({ children: chunk.map((it) => new TableCell({
+      borders: NO_BORDERS, verticalAlign: VerticalAlign.CENTER, width: { size: colW, type: WidthType.DXA },
+      margins: { top: 50, bottom: 50, left: 50, right: 50 },
+      children: [it ? gimg(it[0], it[1], it[2]) : new Paragraph({ children: [txt("")] })],
+    })) }));
+  }
+  const t = new Table({ width: { size: CW, type: WidthType.DXA }, columnWidths: Array(perRow).fill(colW), borders: NO_BORDERS, rows });
+  return [
+    new Paragraph({ spacing: { before: 120, after: 20 }, children: [txt("")] }),
+    t,
+    new Paragraph({ style: "FigCaption", children: [txt(`Figure ${n}. ${caption}`, { italics: true, size: 20 })] }),
+  ];
+}
+
 // ---------- cover ----------
 const cover = [
   new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 240, after: 120 }, children: [new ImageRun({ type: "png", data: fs.readFileSync(LOGO), transformation: { width: 250, height: 148 }, altText: { title: "Zewail City", description: "Zewail City logo", name: "logo" } })] }),
@@ -93,7 +141,7 @@ const cover2 = [
 const absEn = [
   H1("Abstract"),
   P("Pneumonia remains one of the leading causes of illness and death worldwide, and the chest X-ray is the first-line tool used to detect it. In many clinics, however, the number of radiographs far exceeds the number of radiologists available to read them, which delays diagnosis and increases the chance of human error and missed cases. This project presents the Chest X-ray Pneumonia Detection System, a complete, doctor-facing web application that uses deep learning to support pneumonia screening from chest radiographs. The system lets a physician register, create patient records, upload an X-ray image, and receive an automated reading that includes whether pneumonia is likely present, where the suspicious region is located as a bounding box, a numeric confidence score, and a visual heatmap that explains the model decision. Every result is stored per patient so it can be reviewed later."),
-  P("The platform is built as a modular three-tier system: an Angular single-page frontend with server-side rendering, an asynchronous FastAPI backend, and a MongoDB database, with a PyTorch inference layer that serves five trained models through a single model registry. Two of these are object detectors that localize pneumonia (Faster R-CNN and YOLOv8), and three are image classifiers (ResNet50, DenseNet121, and EfficientNet-B0). All models were trained and evaluated on the RSNA Pneumonia Detection Challenge dataset using a leak-free, patient-wise split. On the held-out test set, the strongest classifier (EfficientNet-B0) reached an AUC of 0.886, and the deployed detector (Faster R-CNN) reached a recall of 0.812, which is the property that matters most clinically because it minimizes missed pneumonia. Authentication uses JSON Web Tokens with hashed passwords, and every prediction is accompanied by explainability so the clinician stays in control of the final decision. The result is a reproducible, end-to-end system that demonstrates how modern AI can be embedded into a practical clinical workflow rather than left as an isolated model."),
+  P("The platform is a modular three-tier system: an Angular single-page frontend, an asynchronous FastAPI backend, and a MongoDB database, with a PyTorch inference layer that serves five trained models through one registry: two detectors that localize pneumonia (Faster R-CNN and YOLOv8) and three classifiers (ResNet50, DenseNet121, and EfficientNet-B0). All models were trained and evaluated on the RSNA Pneumonia Detection Challenge dataset using a leak-free, patient-wise split. On the held-out test set the strongest classifier (EfficientNet-B0) reached an AUC of 0.886, and the deployed detector (Faster R-CNN) reached a recall of 0.812, the property that matters most clinically because it minimizes missed pneumonia. Authentication uses JSON Web Tokens with hashed passwords, and every prediction is paired with explainability so the clinician keeps control of the final decision. The result is a reproducible, end-to-end system that embeds modern AI into a practical clinical workflow rather than leaving it as an isolated model."),
 ];
 const absAr = [
   H1("الملخص (Arabic Abstract)"),
@@ -206,9 +254,12 @@ const ch4 = [
     ["FR-6", "A doctor can browse the history of past analyses."],
     ["FR-7", "A doctor can only access their own patients and analyses."],
   ], [1200, 7872], 2, "Core functional requirements."),
-  H2("4.2 Use Cases and User Flow"),
+  H2("4.2 Development Methodology and Data-Flow Design"),
+  P("The project followed an iterative, phase-based methodology that separates the research track (training and evaluating the models) from the engineering track (building the application) and then integrates the two through a shared model registry. The research track is organized as an eight-phase AI pipeline, data preparation, baseline training, hyperparameter optimization, retraining, explainability, evaluation, and a single-image demo, run once per model and illustrated in Figure 7. The engineering track followed an incremental full-stack lifecycle: requirements, an API contract, backend services, the frontend, and integration testing, with the model layer plugged in last."),
+  P("Data collection and preprocessing convert the raw RSNA DICOM studies into uniform 8-bit PNG images, applying identical contrast handling (CLAHE) to every image regardless of its label to avoid leakage, then split them patient-wise into train, validation, and test sets (detailed in Chapter 6). At inference time the runtime data flow is linear: the doctor uploads an image, the backend validates it, the warmed model produces a probability or bounding boxes, non-maximum suppression removes overlapping boxes, an explainability heatmap is rendered, and the structured result is persisted and returned. This end-to-end flow is shown in Figure 2."),
+  H2("4.3 Use Cases and User Flow"),
   P("The main use case is a single, linear clinical flow: the doctor authenticates, selects or creates a patient, uploads an X-ray, waits on a processing screen while inference runs, and then reviews a result screen showing the annotated image, the confidence, and a recommendation. The result is stored and appears in the patient history. Figure 2 shows this data flow."),
-  H2("4.3 Non-Functional Requirements"),
+  H2("4.4 Non-Functional Requirements"),
   ...table(["Attribute", "Target / Approach"], [
     ["Security", "JWT authentication, bcrypt password hashing, per-user authorization, input validation."],
     ["Performance", "Models loaded once at startup (warmup); async I/O for non-blocking requests."],
@@ -217,14 +268,14 @@ const ch4 = [
     ["Maintainability", "Modular routers, a model registry, and a reproducible AI pipeline."],
     ["Usability", "Clean Angular UI with a guided, linear workflow."],
   ], [2400, 6672], 3, "Non-functional requirements."),
-  H2("4.4 Architecture Design"),
+  H2("4.5 Architecture Design"),
   P("The system follows a modular three-tier architecture. An Angular single-page application (with server-side rendering) is the presentation layer; an asynchronous FastAPI service is the application layer; and MongoDB is the data layer. A dedicated inference service inside the backend owns all model logic and loads weights from a model registry. Figure 1 shows the high-level architecture."),
   ...fig("architecture.png", 1, "High-level system architecture (three tiers plus the inference service and model registry).", 600, 349),
   ...fig("dataflow.png", 2, "End-to-end prediction data flow, from upload to stored, displayed result.", 600, 142),
-  H2("4.5 Database Design"),
+  H2("4.6 Database Design"),
   P("The database uses three MongoDB collections: users, patients, and xray_analyses. A user owns many patients, and each patient has many analyses. Unique indexes enforce email and identifier uniqueness, and a compound index on owner and creation time supports fast history queries. Figure 3 shows the entity relationships."),
   ...fig("erd.png", 3, "Entity relationship diagram for the three MongoDB collections.", 580, 274),
-  H2("4.6 API Design"),
+  H2("4.7 API Design"),
   ...table(["Endpoint", "Method", "Purpose"], [
     ["/api/auth/signup, /login, /me", "POST/GET", "Authentication and current user."],
     ["/api/patients", "CRUD", "Patient record management."],
@@ -233,7 +284,7 @@ const ch4 = [
     ["/api/xray/status, /metadata", "GET", "Model status and metadata."],
     ["/health, /docs", "GET", "Health check and OpenAPI (Swagger) documentation."],
   ], [3500, 1500, 4072], 4, "Main REST API endpoints. Full OpenAPI docs are auto-generated at /docs."),
-  H2("4.7 Deployment Architecture and Technology Stack"),
+  H2("4.8 Deployment Architecture and Technology Stack"),
   ...table(["Layer", "Technology"], [
     ["Frontend", "Angular 21 (TypeScript), server-side rendering via Express"],
     ["Backend", "FastAPI (Python), Uvicorn ASGI server, async I/O"],
@@ -242,9 +293,11 @@ const ch4 = [
     ["Auth & Security", "JWT (python-jose), bcrypt (passlib), CORS"],
     ["Model storage", "Git LFS for the .pt checkpoints"],
   ], [2400, 6672], 5, "Technology stack by layer."),
-  H2("4.8 UI / UX Design"),
-  P("The interface is intentionally simple and linear so a busy clinician can move from upload to result with no training. The main screens are the dashboard, the upload page with drag-and-drop and live preview, a processing screen, the result screen with the annotated image and confidence, and the patient-records and history views. Navigation is guarded so that protected pages require authentication. A sample annotated model output is shown in Figure 4."),
+  H2("4.9 UI / UX Design"),
+  P("The interface is intentionally simple and linear so a busy clinician can move from upload to result with no training. After signing in, the doctor lands on a dashboard, opens the upload page (drag-and-drop with a live preview), waits on a short processing screen, and reviews a result screen showing the annotated image, the confidence score, and the heatmap. The patient-records and history views collect past analyses. Navigation is guarded so that protected pages require authentication and signed-in users are redirected away from the public pages. A sample annotated model output is shown in Figure 4, and the main screens of the running application are shown in Figures 5 and 6."),
   ...imgAbs(ROOT + "/Backend/model_assets/demo_output.png", 4, "Sample detector output: the predicted pneumonia region drawn on a chest radiograph.", 320, 320),
+  ...figGrid([["ui_dashboard", 285, 178], ["ui_login", 285, 178]], 2, 5, "The doctor dashboard (left) and the secure login screen (right)."),
+  ...figGrid([["ui_upload", 215, 291], ["ui_result", 215, 279]], 2, 6, "The X-ray upload page with model selector and live preview (left) and the result screen with the annotated image, confidence score, and heatmap (right)."),
   PB(),
 ];
 
@@ -254,14 +307,74 @@ const ch5 = [
   P("This chapter describes the main modules. For each, we give its purpose, the technologies used, its internal workflow, and the key engineering decisions."),
   H2("5.1 Authentication Module"),
   P("Purpose: secure, multi-user access. Technologies: FastAPI dependencies, python-jose for JSON Web Tokens, passlib with bcrypt for password hashing. Workflow: on signup the password is hashed with a per-password salt and never stored in plaintext; on login the server issues a signed JWT with an expiry; protected endpoints require a valid bearer token, which is decoded and verified on each request. A production guard refuses to start the server if it is run in production mode with the default secret key, preventing a common deployment mistake."),
+  ...codeBlock([
+    "def create_access_token(data: dict, expires_delta=None):",
+    "    to_encode = data.copy()",
+    "    expire = datetime.now(UTC) + (expires_delta or",
+    "             timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))",
+    "    to_encode.update({\"exp\": expire})",
+    "    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)",
+    "",
+    "def verify_token(token: str) -> dict:",
+    "    try:",
+    "        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])",
+    "    except JWTError:",
+    "        raise HTTPException(status_code=401,",
+    "                            detail=\"Could not validate credentials\")",
+    "",
+    "# Production guard: refuse to boot with the default secret in production",
+    "if APP_ENV in {\"prod\", \"production\"} and (",
+    "        SECRET_KEY == DEFAULT_DEVELOPMENT_SECRET or len(SECRET_KEY) < 32):",
+    "    raise RuntimeError(\"SECRET_KEY must be strong and unique in production.\")",
+  ], "Listing 1. JWT issuance and verification, with the production secret-key guard (Backend/app/utils/security.py)."),
   H2("5.2 AI / ML Inference Module"),
   P("Purpose: turn an uploaded image into a clinical reading. The module is a single inference service that holds a model registry mapping a model key to its weights, task, and thresholds. At startup the default model is warmed up, that is loaded once into memory, so requests do not pay the load cost. A request validates the image, runs the model, applies non-maximum suppression (NMS) to remove overlapping duplicate boxes, renders the annotated image, generates an explainability heatmap, and returns a structured result. Faster R-CNN is the deployed default detector; the registry also exposes YOLOv8 and the three classifiers."),
-  P("Key decisions: a single warmed model instance keeps latency low and memory predictable; NMS with an intersection-over-union threshold of 0.30 prevents duplicate boxes; and explainability is best-effort, meaning that if a heatmap method fails it is skipped rather than failing the whole prediction. Figure 5 shows the AI pipeline that produced these models."),
-  ...fig("ai_pipeline.png", 5, "The eight-phase AI pipeline used to prepare, train, optimize, and deploy the models.", 600, 146),
+  P("Key decisions: a single warmed model instance keeps latency low and memory predictable; NMS with an intersection-over-union threshold of 0.30 prevents duplicate boxes; and explainability is best-effort, meaning that if a heatmap method fails it is skipped rather than failing the whole prediction. Figure 7 shows the AI pipeline that produced these models."),
+  ...fig("ai_pipeline.png", 7, "The eight-phase AI pipeline used to prepare, train, optimize, and deploy the models.", 600, 146),
+  ...codeBlock([
+    "# Model registry: one validated entry per served model (key -> spec).",
+    "MODEL_CATALOG = {",
+    "    \"fasterrcnn\":      ModelCatalogSpec(family=DETECTION,      weights_file=\"fasterrcnn.pt\",      default_conf=0.10),",
+    "    \"yolo\":            ModelCatalogSpec(family=DETECTION,      weights_file=\"yolo_best.pt\",       default_conf=0.10),",
+    "    \"efficientnet_b0\": ModelCatalogSpec(family=CLASSIFICATION, weights_file=\"efficientnet_b0.pt\", input_size=224),",
+    "    \"resnet50\":        ModelCatalogSpec(family=CLASSIFICATION, weights_file=\"resnet50.pt\",        input_size=224),",
+    "    \"densenet121\":     ModelCatalogSpec(family=CLASSIFICATION, weights_file=\"densenet121.pt\",     input_size=224),",
+    "}",
+    "",
+    "# Non-maximum suppression drops overlapping duplicate boxes, then sort by score.",
+    "keep = nms(boxes, scores, nms_iou_threshold).tolist()",
+    "detections = sorted((detections[i] for i in keep),",
+    "                    key=lambda d: d[\"confidence\"], reverse=True)",
+  ], "Listing 2. The model registry and the non-maximum-suppression step in the inference service (Backend/app/utils/xray_inference.py)."),
+  P("The HTTP contract is a single multipart upload that returns the full structured reading. Listing 3 shows a representative request and response."),
+  ...codeBlock([
+    "POST /api/xray/upload          (multipart: file, patient_id, model_key)",
+    "Authorization: Bearer <jwt>",
+    "",
+    "200 OK",
+    "{",
+    "  \"analysis_id\": \"ANA_3F9C12A0B7D4\",",
+    "  \"model\": \"fasterrcnn\",",
+    "  \"prediction\": \"pneumonia\",",
+    "  \"confidence\": 0.81,",
+    "  \"boxes\": [{\"x1\": 286, \"y1\": 196, \"x2\": 470, \"y2\": 421, \"score\": 0.81}],",
+    "  \"heatmap_url\": \"/uploads/ANA_3F9C12A0B7D4_gradcam.png\",",
+    "  \"created_at\": \"2026-06-16T12:04:33Z\"",
+    "}",
+  ], "Listing 3. Representative upload request and the JSON reading returned by the API."),
   H2("5.3 Backend Services"),
   P("Purpose: orchestrate authentication, patient management, inference, and persistence. Technology: FastAPI with fully asynchronous request handling and a lifespan context that connects to MongoDB and warms the model on startup and cleans up on shutdown. Routers are split by resource (auth, patients, x-ray) for clarity, and Pydantic models validate every request and response."),
   H2("5.4 Frontend Application"),
   P("Purpose: the doctor-facing interface. Technology: Angular 21 with server-side rendering for fast first paint and better SEO on public pages. State is held in a central analysis-state service, routing is protected by authentication guards, and a single API service centralizes all backend calls so the rest of the app never talks to HTTP directly. The build is a standard Angular production build that prerenders the public routes."),
+  ...codeBlock([
+    "// Route guard: only authenticated users reach protected pages.",
+    "export const authGuard: CanActivateFn = () => {",
+    "  const authService = inject(AuthService);",
+    "  const router = inject(Router);",
+    "  if (authService.isAuthenticated()) return true;",
+    "  return router.createUrlTree(['/login']);",
+    "};",
+  ], "Listing 4. The Angular route guard that protects authenticated pages (Frontend/src/app/auth.guard.ts)."),
   H2("5.5 Database Layer"),
   P("Purpose: durable storage of users, patients, and analyses. Technology: MongoDB through the asynchronous Motor driver. We chose a document database because one analysis is naturally a single nested document (boxes, scores, heatmap paths, timestamps) that is always read as a whole. Indexes are created at connection time to guarantee uniqueness and to make per-user history queries fast."),
   H2("5.6 Hyperparameter Optimization"),
@@ -296,21 +409,35 @@ const ch7 = [
     ["DenseNet121", "0.883", "0.802", "0.785", "0.807", "0.641", "7.0M"],
     ["EfficientNet-B0", "0.886", "0.815", "0.765", "0.830", "0.651", "4.0M"],
   ], [2200, 1100, 1300, 1150, 1372, 950, 1000], 6, "Classification results on the held-out test set."),
-  ...fig("classification_metrics.png", 6, "Classification metrics across the three classifiers.", 560, 299),
-  ...fig("confusion_matrices.png", 7, "Confusion matrices for the three classifiers on the held-out test set.", 620, 200),
+  ...fig("classification_metrics.png", 8, "Classification metrics across the three classifiers.", 560, 299),
+  ...fig("confusion_matrices.png", 9, "Confusion matrices for the three classifiers on the held-out test set.", 620, 200),
   P("All three classifiers perform similarly, with AUCs clustered around 0.88. EfficientNet-B0 is the strongest and also by far the smallest (4.0 million parameters), which makes it the most efficient choice for serving. The confusion matrices show the expected trade-off on an imbalanced test set: the models keep specificity high while maintaining solid sensitivity."),
   H2("7.2 Detection Results"),
   ...table(["Model", "mAP@0.5", "mAP@[.5:.95]", "Recall", "Params"], [
     ["YOLOv8n", "0.346", "0.138", "0.382", "3.0M"],
     ["Faster R-CNN", "0.381", "0.124", "0.812", "41.3M"],
   ], [2400, 1700, 1900, 1400, 1672], 7, "Detection results on the held-out test set."),
-  ...fig("detection_metrics.png", 8, "Detection metrics: YOLOv8n versus Faster R-CNN.", 560, 336),
+  ...fig("detection_metrics.png", 10, "Detection metrics: YOLOv8n versus Faster R-CNN.", 560, 336),
   P("The two detectors reach a similar mAP@0.5, but they differ sharply on recall: Faster R-CNN recalls 0.812 of pneumonia regions versus 0.382 for YOLOv8n. Because a missed pneumonia is the dangerous error, we deploy Faster R-CNN as the default detector despite its larger size. This is a clear example of choosing a model on the clinically meaningful metric rather than on a headline number."),
   H2("7.3 Optimization: A Negative but Useful Result"),
   P("Our PSO, GWO, and SA hyperparameter search ran on a deliberately cheap proxy so it could fit a single GPU session. That proxy turned out to be too noisy to rank configurations reliably: the settings it preferred improved the proxy score but hurt the full retrain for most models. We therefore select the validation-best checkpoint per model rather than the search-suggested one. The lesson, that lightweight proxy search does not automatically beat a strong, carefully tuned baseline, is a genuine and defensible engineering finding."),
   H2("7.4 Calibration Against the Literature"),
   P("Our numbers are honest and competitive. A classification AUC near 0.88 is in line with established work; the well-known CheXNet reported an AUC of 0.768 for pneumonia on a different dataset. Reported RSNA detection results typically land between 0.32 and 0.39 mAP@0.5, so our Faster R-CNN at 0.381 is on par with engineered solutions. We deliberately avoided the inflated near-perfect scores that appear when the data leaks between train and test at the patient level."),
-  H2("7.5 Limitations"),
+  H2("7.5 Explainability Results"),
+  P("Because the system attaches a visual explanation to every prediction, we can confirm that the models attend to the lungs rather than to irrelevant artifacts. For a pneumonia-positive case, Figure 11 places the original radiograph next to four classifier saliency maps, all of which concentrate on the affected lung field. Figure 12 contrasts the two detectors on a case where Faster R-CNN localizes the opacity that YOLOv8 misses, with two detector-specific explanations. Figure 13 shows a normal case that EfficientNet-B0 correctly clears with high confidence."),
+  ...figGrid([
+    ["xai_orig", 185, 185], ["xai_gradcam", 185, 185], ["xai_integrated_gradients", 185, 185],
+    ["xai_gradient_shap", 185, 185], ["xai_score_cam", 185, 185],
+  ], 3, 11, "Classifier explainability for a pneumonia-positive case: the original X-ray followed by Grad-CAM, Integrated Gradients, GradientSHAP, and Score-CAM heatmaps, all focusing on the affected lung."),
+  ...figGrid([
+    ["xai_det_box", 235, 264], ["xai_yolo_box", 235, 264],
+    ["xai_eigencam", 235, 235], ["xai_occlusion", 235, 235],
+  ], 2, 12, "Detector explainability: Faster R-CNN localizes the opacity (top-left) on a case where YOLOv8 produces no box (top-right); Eigen-CAM and occlusion sensitivity (bottom) confirm the salient region."),
+  ...figGrid([
+    ["xai_normal_orig", 235, 235], ["xai_normal_banner", 235, 264],
+  ], 2, 13, "A normal chest X-ray (left) correctly predicted as non-pneumonia with high confidence by EfficientNet-B0 (right)."),
+  P("These explanations are generated live with every prediction and are best-effort: if a particular method fails on a given image it is skipped rather than blocking the reading, so the doctor always receives a result with whatever explanations succeeded."),
+  H2("7.6 Limitations"),
   bullet("Performance is bounded by the difficulty and label noise of the RSNA dataset and may not transfer to other populations or equipment without re-validation."),
   bullet("The system does not yet detect out-of-distribution inputs, such as a non-chest image, beyond basic format checks."),
   bullet("Load testing and production monitoring are not yet in place, so we report architecture-level rather than measured scalability."),
@@ -390,6 +517,9 @@ const ap1 = [
   bullet("Submit for analysis and wait on the processing screen."),
   bullet("Review the result: the annotated image, the pneumonia decision, the confidence score, and the heatmap."),
   bullet("Find the saved analysis later in the patient history."),
+  P("The screenshots below walk through the entry and history screens; the dashboard, the upload page, and the result screen are shown earlier in Figures 5 and 6."),
+  ...figGrid([["ui_welcome", 250, 357]], 1, 14, "The public welcome screen, the entry point before signing in."),
+  ...figGrid([["ui_records", 290, 201], ["ui_record_detail", 290, 201]], 2, 15, "The patient records list (left) and the detailed view of a past analysis (right)."),
   H2("A1.4 Troubleshooting"),
   bullet("If the backend fails to start, confirm MongoDB is running and the MONGODB_URL in .env is correct."),
   bullet("If a model fails to load, confirm Git LFS pulled the .pt files into Backend/model_assets."),

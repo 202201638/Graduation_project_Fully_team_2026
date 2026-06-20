@@ -1,6 +1,6 @@
 # Kaggle Notebooks - Per-Model Pipelines
 
-Seven notebooks. Run `00` once, then run each model notebook independently. Each model
+Six notebooks. Run `00` once, then run each model notebook independently. Each model
 notebook runs **phases 3 -> 8** for one model and writes `artifacts/<model>_report.json`.
 
 ## Run order
@@ -11,11 +11,10 @@ notebook runs **phases 3 -> 8** for one model and writes `artifacts/<model>_repo
      stratified `yolo_dataset/` (train/val/test).
    - Publish `/kaggle/working/yolo_dataset` as a Kaggle Dataset (e.g. `rsna-prepped-yolo-dataset`).
 
-2. **The six model notebooks** - run each on its own (GPU on). Set `PREPPED_INPUT` to the
+2. **The five model notebooks** - run each on its own (GPU on). Set `PREPPED_INPUT` to the
    dataset you published in step 1.
    - `01_resnet50.ipynb`, `02_densenet121.ipynb`, `03_efficientnet_b0.ipynb` (classification, 224px, Grad-CAM)
    - `04_yolov8.ipynb`, `05_fasterrcnn.ipynb` (detection, 640px, box overlays)
-   - `06_ssdlite.ipynb` (detection, **SSDlite320 MobileNetV3**, ~2.2M params, 320px - the fast-to-train detector)
 
 Each notebook is self-contained for training: baseline (phase 3) -> PSO/GWO/SA optimization
 (phase 4) -> retrain with best params (phase 5) -> explainability (phase 6) -> final test-set
@@ -32,11 +31,6 @@ comparison - so you only run the setup cell, then that section (no need to retra
 It writes `artifacts/<model>_report_rerun.json` and only promotes the new weights if they beat the
 baseline.
 
-**One-stop option: `07_rerun_all.ipynb`.** Instead of opening each notebook, this single notebook does
-the setup once and runs the stronger re-run for every model in a `MODELS` list (edit it to run a subset
-per Kaggle session if you hit the time limit). Same outputs: `artifacts/<model>_report_rerun.json` +
-`artifacts/checkpoints/<model>_rerun.pt`.
-
 ## Hand-back
 
 After each notebook finishes, download from the **Output** tab:
@@ -45,15 +39,14 @@ After each notebook finishes, download from the **Output** tab:
 
 Plus, from the re-run section: `artifacts/<model>_report_rerun.json` and `artifacts/checkpoints/<model>_rerun.pt`.
 
-Send the six `*_report.json` files (and the `*_report_rerun.json` files) back; they get integrated into one comparison table and the thesis discussion.
+Send the five `*_report.json` files (and the `*_report_rerun.json` files) back; they get integrated into one comparison table and the thesis discussion.
 
 ## What to expect (honest, leak-free numbers)
 
 - **Classification** (ResNet50 / DenseNet121 / EfficientNet-B0): test **AUC ~ 0.82-0.92**.
   The old ~0.99-1.0 was a preprocessing leak (CLAHE applied only to pneumonia images), now fixed.
-- **Detection** (YOLOv8n / Faster R-CNN / SSDlite): test **mAP@0.5 ~ 0.20-0.45** - this is the
-  realistic range for RSNA pneumonia localization, not a defect. SSDlite is the lightest and
-  fastest to train; expect it near the lower end of that range.
+- **Detection** (YOLOv8n / Faster R-CNN): test **mAP@0.5 ~ 0.20-0.45** - this is the
+  realistic range for RSNA pneumonia localization, not a defect.
 
 ## Tuning for the Kaggle time limit
 

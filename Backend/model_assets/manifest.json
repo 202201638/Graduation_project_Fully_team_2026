@@ -30,16 +30,6 @@
       "default_conf": 0.1,
       "confirmed_conf": 0.25
     },
-    "ssdlite": {
-      "display_name": "SSDlite",
-      "model_type": "torchvision_ssdlite_detection",
-      "task": "pneumonia_detection",
-      "weights_file": "ssdlite.pt",
-      "class_names": ["pneumonia"],
-      "default_imgsz": 320,
-      "default_conf": 0.1,
-      "confirmed_conf": 0.25
-    },
     "resnet50": {
       "display_name": "ResNet50",
       "model_type": "torchvision_resnet50_classification",

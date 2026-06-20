@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm, NgModel } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -26,6 +26,7 @@ export class Signup {
   constructor(
     private router: Router,
     private authService: AuthService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   onSubmit(form: NgForm): void {
@@ -63,10 +64,12 @@ export class Signup {
           this.authService.setSession(response.access_token, response.user);
           this.router.navigate(['/dashboard']);
           this.isLoading = false;
+          this.cdr.markForCheck();
         },
         error: (error) => {
           this.errorMessage = error?.error?.detail || 'Unable to create your account.';
           this.isLoading = false;
+          this.cdr.markForCheck();
           console.error('Signup error:', error);
         },
       });

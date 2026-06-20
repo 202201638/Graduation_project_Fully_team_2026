@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -50,6 +50,7 @@ export class Profile implements OnInit, OnDestroy {
   constructor(
     private profileService: ProfileService,
     private analysisState: AnalysisStateService,
+    private cdr: ChangeDetectorRef,
   ) {
     const profile = this.profileService.profile;
     this.name = profile.name;
@@ -72,6 +73,7 @@ export class Profile implements OnInit, OnDestroy {
           title: `${item.diagnosis} for patient ${item.patientId || 'Unknown'}`,
           time: this.formatTime(item.date),
         }));
+        this.cdr.markForCheck();
       }),
     );
 

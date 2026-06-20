@@ -54,6 +54,21 @@ def img(path, x, y, w, h):
     ax = fig.add_axes([x, y, w, h]); ax.imshow(mpimg.imread(path)); ax.axis("off")
 
 
+def flow(x, y, w, steps, h=0.024, fs=15):
+    """Horizontal workflow block diagram: navy rounded boxes joined by teal arrows."""
+    n = len(steps); gap = 0.010
+    bw = (w - gap * (n - 1)) / n
+    for i, s in enumerate(steps):
+        bx = x + i * (bw + gap)
+        bg.add_patch(FancyBboxPatch((bx, y), bw, h, boxstyle="round,pad=0.002,rounding_size=0.004",
+                                    linewidth=0, facecolor=NAVY, zorder=2))
+        bg.text(bx + bw / 2, y + h / 2, s, color="white", fontsize=fs, fontweight="bold",
+                ha="center", va="center", zorder=3)
+        if i < n - 1:
+            bg.text(bx + bw + gap / 2, y + h / 2, ">", color=TEAL, fontsize=fs + 5,
+                    fontweight="bold", ha="center", va="center", zorder=3)
+
+
 # ---------- Header ----------
 band(0, 0.945, 1, 0.055, NAVY)
 img(LOGO, 0.035, 0.9515, 0.13, 0.042)
@@ -77,8 +92,9 @@ Lx, Rx, CW = 0.035, 0.515, 0.45
 y = 0.905
 sect_title(Lx, y, CW, "Problem and Motivation")
 y = body(Lx, y - 0.012,
-         "Pneumonia is a leading cause of illness and death worldwide, and the chest X-ray is the first-line tool to detect it. In many clinics the number of radiographs far exceeds the radiologists available to read them, which delays diagnosis and raises the risk of missed cases. A missed pneumonia is the most dangerous error. We provide a fast, accessible AI second reader that flags and localizes pneumonia while the doctor stays in control.",
-         width=70, size=20)
+         "Problem: given a chest X-ray, decide pneumonia vs normal, localize the region, and produce a report. Done manually this is slow and needs scarce radiologist expertise, and no accessible, explainable tool does it end to end.\n"
+         "Motivation: high X-ray volume and few radiologists delay reads; a missed pneumonia is the costly error; existing tools are closed and expensive. We give a fast, explainable AI second reader, doctor in control.",
+         width=72, size=20)
 
 y -= 0.012
 sect_title(Lx, y, CW, "Objectives")
@@ -91,9 +107,10 @@ y = body(Lx, y - 0.012,
 
 y -= 0.012
 sect_title(Lx, y, CW, "Proposed Solution")
-y = body(Lx, y - 0.012,
-         "A doctor signs in, manages patients, uploads a chest X-ray, and receives an automated reading: a pneumonia decision, a bounding box, a confidence score, and an explainability heatmap. Five models are served behind one registry; Faster R-CNN is the deployed default. Every analysis is stored per patient, and the physician confirms every result.",
-         width=70, size=20)
+flow(Lx, y - 0.044, CW, ["X-ray", "Preprocess", "Classify", "Detect", "Report"])
+y = body(Lx, y - 0.064,
+         "A doctor signs in, uploads a chest X-ray, and gets an automated reading: a pneumonia decision with confidence, a localized bounding box, an explainability heatmap, and an auto-filled report saved per patient. Five models behind one registry (Faster R-CNN deployed); the physician confirms every result.",
+         width=72, size=20)
 
 y -= 0.014
 sect_title(Lx, y, CW, "System Architecture")
@@ -135,12 +152,13 @@ y = body(Rx, y - 0.118,
          width=70, size=20)
 
 y -= 0.012
-sect_title(Rx, y, CW, "Sample Output and Explainability")
-img(DEMO, Rx, y - 0.150, 0.16, 0.145)
-body(Rx + 0.175, y - 0.02,
-     "Every prediction is accompanied by a bounding box and a heatmap (Grad-CAM and related methods) so the clinician can verify that the model is looking at the lungs, not an artifact.",
-     width=36, size=20)
-y = y - 0.160
+sect_title(Rx, y, CW, "Sample Output and the App")
+img(DEMO, Rx, y - 0.150, 0.145, 0.145)
+img(FIG + "ui_result.png", Rx + 0.168, y - 0.150, 0.150, 0.145)
+y = body(Rx, y - 0.160,
+         "Left: detector output with the localized region. Right: the result screen - decision, confidence, bounding box, heatmap, and the auto-filled report. Every prediction shows a heatmap (Grad-CAM and related) so the clinician can verify the model looks at the lungs, not an artifact.",
+         width=72, size=18)
+y -= 0.006
 
 sect_title(Rx, y, CW, "Conclusion")
 y = body(Rx, y - 0.012,
@@ -155,6 +173,6 @@ bg.text(0.092, 0.018, "github.com/202201638/Graduation_project_Fully_team_2026",
 bg.text(0.965, 0.0275, "Graduation Project  -  Bachelor of Science in CSAI  -  Zewail City, June 2026",
         color="#cfe0f0", fontsize=17, ha="right", va="center", zorder=3)
 
-fig.savefig(OUTPNG, dpi=110, facecolor="white")
+fig.savefig(OUTPNG, dpi=150, facecolor="white")
 fig.savefig(OUTPDF, facecolor="white")
 print("WROTE", OUTPNG, "and", OUTPDF)

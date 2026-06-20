@@ -7,7 +7,6 @@ from src.classification.train_efficientnet import train_efficientnet
 from src.classification.train_resnet import train_resnet
 from src.config import ARTIFACT_DIR, CHECKPOINT_DIR
 from src.detection.train_fasterrcnn import train_fasterrcnn
-from src.detection.train_ssdlite import train_ssdlite
 from src.detection.train_yolo import train_yolo
 
 
@@ -65,20 +64,6 @@ def run_phase5_retrain(full_epochs_detection: int = 20, full_epochs_classificati
             )
         except Exception as exc:
             out["fasterrcnn"] = {"status": "failed", "error": str(exc)}
-        _save_json(RETRAIN_RESULTS_PATH, out)
-
-    if "ssdlite" in best:
-        ssd_p = best["ssdlite"]["best_hyperparameters"]
-        try:
-            out["ssdlite"] = train_ssdlite(
-                epochs=full_epochs_detection,
-                lr=float(ssd_p["lr"]),
-                batch_size=int(ssd_p["batch_size"]),
-                weight_decay=float(ssd_p["weight_decay"]),
-                checkpoint_path=os.path.join(CHECKPOINT_DIR, "ssdlite_phase5.pt"),
-            )
-        except Exception as exc:
-            out["ssdlite"] = {"status": "failed", "error": str(exc)}
         _save_json(RETRAIN_RESULTS_PATH, out)
 
     if "resnet50" in best:

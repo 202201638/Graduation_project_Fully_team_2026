@@ -42,7 +42,7 @@ methodology.
 7. **Final evaluation** - before vs after on the test split.
 8. **Demo** - single-image inference.
 
-Each of the six models is taken through phases 3-8 independently (one Kaggle notebook each).
+Each of the five models is taken through phases 3-8 independently (one Kaggle notebook each).
 
 ## 4. Models, architectures, and hyperparameters
 

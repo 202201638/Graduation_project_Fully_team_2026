@@ -25,14 +25,13 @@ from src.model_utils import (
     build_efficientnet_b0_classifier,
     build_fasterrcnn_detector,
     build_resnet50_classifier,
-    build_ssdlite_detector,
     load_checkpoint_if_available,
     resolve_latest_yolo_checkpoint,
 )
 
 CLASSIFICATION_MODELS = {"resnet50", "densenet121", "efficientnet_b0"}
 # TorchVision detector builders (non-YOLO), dispatched by model name.
-_DET_BUILDERS = {"fasterrcnn": build_fasterrcnn_detector, "ssdlite": build_ssdlite_detector}
+_DET_BUILDERS = {"fasterrcnn": build_fasterrcnn_detector}
 _NORMALIZE = T.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD)
 
 
@@ -261,12 +260,8 @@ def _eigen_cam_detector(model_name: str, checkpoint_path: str, image_path: str, 
         load_checkpoint_if_available(model, checkpoint_path)
         model = model.to(device).eval()
         tensor = torch.from_numpy(image_rgb).permute(2, 0, 1).float().to(device) / 255.0
-        # ResNet50-FPN exposes backbone.body.layer4; MobileNetV3 (SSDlite) does not,
-        # so hook the whole backbone (its feature-map output) for those.
-        if model_name == "ssdlite":
-            hook_target = model.backbone
-        else:
-            hook_target = model.backbone.body.layer4[-1]
+        # ResNet50-FPN exposes backbone.body.layer4; hook its last block for the CAM.
+        hook_target = model.backbone.body.layer4[-1]
         handle = hook_target.register_forward_hook(_hook)
         try:
             with torch.no_grad():

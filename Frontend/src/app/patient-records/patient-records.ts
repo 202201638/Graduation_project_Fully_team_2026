@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -49,12 +49,14 @@ export class PatientRecords implements OnInit, OnDestroy {
     private authService: AuthService,
     private profileService: ProfileService,
     private router: Router,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit() {
     this.historySubscription = this.analysisState.history$.subscribe((history) => {
       this.records = history.map((result) => this.toRecordRow(result));
       this.applyFilters();
+      this.cdr.markForCheck();
     });
     this.loadPatients();
     this.analysisState.loadAuthenticatedHistory();
@@ -90,9 +92,11 @@ export class PatientRecords implements OnInit, OnDestroy {
         this.errorMessage = '';
         this.records = this.analysisState.getHistory().map((result) => this.toRecordRow(result));
         this.applyFilters();
+        this.cdr.markForCheck();
       },
       error: (error) => {
         this.errorMessage = error?.error?.detail || 'Unable to load patient records.';
+        this.cdr.markForCheck();
       },
     });
   }

@@ -1,7 +1,7 @@
 """Per-model pipeline: run phases 3->8 for a SINGLE model and emit one
 thesis-ready report JSON (architecture, baseline + optimized hyperparameters,
 full test metrics, confusion matrix, before/after comparison, explainability,
-demo). This is what each of the 6 Kaggle notebooks calls.
+demo). This is what each of the 5 Kaggle notebooks calls.
 """
 import json
 import os
@@ -13,7 +13,6 @@ from src.classification.train_resnet import train_resnet
 from src.classification.train_densenet import train_densenet
 from src.classification.train_efficientnet import train_efficientnet
 from src.detection.train_fasterrcnn import train_fasterrcnn
-from src.detection.train_ssdlite import train_ssdlite
 from src.detection.train_yolo import train_yolo
 from src.phase4_optimization import optimize_model, CLASSIFICATION_MODELS
 from src.phase6_explainability import run_explainability_for_model
@@ -31,8 +30,6 @@ _ARCH: Dict[str, Dict] = {
              "head": "anchor-free detect head", "input_size": IMG_SIZE, "primary_metric": "map50"},
     "fasterrcnn": {"family": "detection", "base": "Faster R-CNN ResNet50-FPN (pretrained)",
                    "head": "FastRCNNPredictor(2 classes)", "input_size": IMG_SIZE, "primary_metric": "map50"},
-    "ssdlite": {"family": "detection", "base": "SSDlite320 MobileNetV3-Large (COCO-pretrained)",
-                "head": "SSDLiteClassificationHead(2 classes)", "input_size": 320, "primary_metric": "map50"},
 }
 
 # YOLO-family (Ultralytics) models share one training/checkpoint/explain path.
@@ -47,14 +44,13 @@ _BASELINE: Dict[str, Dict] = {
     "efficientnet_b0": {"lr": 1e-4, "batch_size": 32, "dropout": 0.3, "weight_decay": 1e-4},
     "yolo": {"lr": 1e-3, "batch_size": 16, "weight_decay": 5e-4, "anchor_size": 16},
     "fasterrcnn": {"lr": 5e-3, "batch_size": 4, "weight_decay": 5e-4},
-    "ssdlite": {"lr": 3e-3, "batch_size": 8, "weight_decay": 5e-4},
 }
 
 # Epochs used for BOTH baseline and final runs (early stopping cuts these short),
 # so before/after isolates the effect of the optimized hyperparameters.
 _DEFAULT_EPOCHS: Dict[str, int] = {
     "resnet50": 12, "densenet121": 12, "efficientnet_b0": 12,
-    "fasterrcnn": 12, "yolo": 35, "ssdlite": 30,
+    "fasterrcnn": 12, "yolo": 35,
 }
 
 _CLS_TRAINERS = {
@@ -62,7 +58,7 @@ _CLS_TRAINERS = {
     "densenet121": train_densenet,
     "efficientnet_b0": train_efficientnet,
 }
-_DET_TRAINERS = {"fasterrcnn": train_fasterrcnn, "ssdlite": train_ssdlite}
+_DET_TRAINERS = {"fasterrcnn": train_fasterrcnn}
 
 
 def _train_one(
@@ -95,7 +91,7 @@ def _train_one(
             model_label=model_name,
             run_name=f"{run_tag}_{model_name}",
         )
-    # TorchVision detectors (Faster R-CNN, SSDlite): subsample train data via fraction.
+    # TorchVision detectors (Faster R-CNN): subsample train data via fraction.
     return _DET_TRAINERS[model_name](
         epochs=epochs,
         lr=float(params["lr"]),

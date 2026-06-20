@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -31,11 +31,13 @@ export class Dashboard implements OnInit, OnDestroy {
   constructor(
     private profileService: ProfileService,
     private analysisState: AnalysisStateService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
     this.historySubscription = this.analysisState.history$.subscribe((history) => {
       this.history = history;
+      this.cdr.markForCheck();
     });
     this.analysisState.loadAuthenticatedHistory();
   }

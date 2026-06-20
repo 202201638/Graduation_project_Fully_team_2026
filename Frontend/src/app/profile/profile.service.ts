@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 
 export interface UserProfile {
   name: string;
@@ -17,23 +17,26 @@ export class ProfileService {
     avatarInitials: 'GU',
   };
 
-  private _profile: UserProfile = { ...this.defaultProfile };
+  // Signal-backed so any template reading profile.* through a getter becomes reactive:
+  // when the authenticated user loads asynchronously, the navbar/avatar/name update without
+  // needing a click (the app runs zoneless - see app.config.ts).
+  private readonly _profile = signal<UserProfile>({ ...this.defaultProfile });
 
   constructor() {
     this.loadFromStorage();
   }
 
   get profile(): UserProfile {
-    return this._profile;
+    return this._profile();
   }
 
   updateProfile(update: Partial<UserProfile>): void {
-    this._profile = { ...this._profile, ...update };
+    this._profile.set({ ...this._profile(), ...update });
     this.saveToStorage();
   }
 
   resetProfile(): void {
-    this._profile = { ...this.defaultProfile };
+    this._profile.set({ ...this.defaultProfile });
     this.saveToStorage();
   }
 
@@ -53,7 +56,7 @@ export class ProfileService {
         return;
       }
 
-      this._profile = { ...this._profile, ...parsed };
+      this._profile.set({ ...this._profile(), ...parsed });
     } catch {
       // Ignore storage errors and fall back to defaults
     }
@@ -65,7 +68,7 @@ export class ProfileService {
         return;
       }
 
-      window.localStorage.setItem(this.storageKey, JSON.stringify(this._profile));
+      window.localStorage.setItem(this.storageKey, JSON.stringify(this._profile()));
     } catch {
       // Ignore storage errors
     }

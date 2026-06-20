@@ -18,7 +18,7 @@ import torch.nn as nn
 from PIL import Image, UnidentifiedImageError
 from torchvision import transforms
 from torchvision.models import densenet121, efficientnet_b0, resnet50
-from torchvision.models.detection import fasterrcnn_resnet50_fpn, ssdlite320_mobilenet_v3_large
+from torchvision.models.detection import fasterrcnn_resnet50_fpn
 from torchvision.ops import nms
 from torchvision.transforms import functional as transforms_functional
 
@@ -116,19 +116,6 @@ MODEL_REGISTRY: dict[str, ModelCatalogSpec] = {
         default_conf=0.10,
         confirmed_conf=0.25,
         description="Torchvision Faster R-CNN detector that returns pneumonia boxes.",
-    ),
-    "ssdlite": ModelCatalogSpec(
-        key="ssdlite",
-        display_name="SSDlite",
-        family=MODEL_FAMILY_DETECTION,
-        model_type="torchvision_ssdlite_detection",
-        task="pneumonia_detection",
-        weights_file="ssdlite.pt",
-        class_names=("pneumonia",),
-        default_conf=0.10,
-        confirmed_conf=0.25,
-        default_imgsz=320,
-        description="Lightweight SSDlite320 MobileNetV3 detector (fast, ~2.2M params) that returns pneumonia boxes.",
     ),
     "resnet50": ModelCatalogSpec(
         key="resnet50",
@@ -319,7 +306,7 @@ class XRayInferenceService:
         model_name: str,
         metrics: Dict[str, Any],
     ) -> tuple[Optional[str], Optional[float], Optional[str], Optional[float]]:
-        if model_name in {"yolo", "fasterrcnn", "ssdlite"}:
+        if model_name in {"yolo", "fasterrcnn"}:
             return (
                 "mAP@0.5",
                 self._float_or_none(metrics.get("map50")),
@@ -668,10 +655,6 @@ class XRayInferenceService:
         """Last high-level conv block to read for Eigen-CAM, per detector architecture."""
         if model_name == "fasterrcnn":
             return model.backbone.body.layer4[-1]
-        if model_name == "ssdlite":
-            # MobileNetV3 backbone has no .body.layer4; hook the whole backbone's
-            # feature-map output (an OrderedDict, handled below).
-            return model.backbone
         if model_name in YOLO_MODEL_KEYS:
             # ultralytics DetectionModel: the block just before the Detect head.
             return model.model.model[-2]
@@ -942,10 +925,6 @@ class XRayInferenceService:
     def _load_detection_model(self, model_name: str, weights_path: Path):
         if model_name == "fasterrcnn":
             model = fasterrcnn_resnet50_fpn(weights=None, weights_backbone=None, num_classes=2)
-        elif model_name == "ssdlite":
-            # Same 2-class head structure the training builder produces, so the trained
-            # checkpoint loads strict (verified).
-            model = ssdlite320_mobilenet_v3_large(weights=None, weights_backbone=None, num_classes=2)
         else:
             raise RuntimeError(f"Unsupported detection model '{model_name}'.")
 

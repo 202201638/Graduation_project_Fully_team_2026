@@ -21,8 +21,8 @@ class YoloDetectionDataset(Dataset):
         ]
         self.image_files.sort()
 
-        # Deterministic subsample for fast training on part of the data (e.g. the
-        # SSDlite "half-dataset" speed lever, or the Phase-4 proxy search).
+        # Deterministic subsample for fast training on part of the data
+        # (e.g. the Phase-4 proxy search).
         if 0.0 < fraction < 1.0 and self.image_files:
             keep = max(1, int(len(self.image_files) * fraction))
             rng = random.Random(SEED)
